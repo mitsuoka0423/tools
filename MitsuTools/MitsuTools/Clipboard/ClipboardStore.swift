@@ -144,14 +144,36 @@ final class ClipboardStore {
             pasteboard.setString(text, forType: .string)
         } else {
             let pbItem = NSPasteboardItem()
-            for rep in item.representations { pbItem.setData(rep.data, forType: rep.type) }
-            pasteboard.writeObjects([pbItem])
+            var written = Set<NSPasteboard.PasteboardType>()
+            for rep in item.representations where !Self.isPromiseType(rep.type) {
+                if pbItem.setData(rep.data, forType: rep.type) { written.insert(rep.type) }
+            }
+            // 画像は、貼り付け先が読める形式（TIFF・PNG）を必ず入れる。
+            // コピー元によっては JPEG や独自の形式しかなく、多くのアプリが読めないため。
+            if let image = item.image ?? (item.kind == .image ? NSImage(data: item.representations.first?.data ?? Data()) : nil) {
+                if !written.contains(.tiff), let tiff = image.tiffRepresentation {
+                    pbItem.setData(tiff, forType: .tiff)
+                }
+                if !written.contains(.png), let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    pbItem.setData(png, forType: .png)
+                }
+            }
+            if !pasteboard.writeObjects([pbItem]) {
+                NSLog("MitsuTools: クリップボードに書き戻せませんでした（\(item.kind.rawValue)）")
+            }
         }
         // 自分で書いた内容は履歴に入れ直さない。ただし選んだ項目は先頭へ移す。
         lastChangeCount = pasteboard.changeCount
         if let index = items.firstIndex(where: { $0.id == item.id }) {
             items.insert(items.remove(at: index), at: 0)
         }
+    }
+
+    /// 「あとでファイルを渡す」という約束の型。コピー元のアプリがもう応じられないので、書き戻すと貼り付けが失敗する。
+    private static func isPromiseType(_ type: NSPasteboard.PasteboardType) -> Bool {
+        let raw = type.rawValue
+        return raw.contains("promised") || raw.contains("NSPromise") || raw.contains("FilePromise")
     }
 
     // MARK: 監視
@@ -186,7 +208,8 @@ final class ClipboardStore {
 
         let fileURLs = (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         let text = pbItem.string(forType: .string)
-        let image: NSImage? = types.contains(where: { $0 == .tiff || $0 == .png }) ? NSImage(pasteboard: pasteboard) : nil
+        // TIFF・PNG に限らず、JPEG や HEIC など NSImage が読める画像はすべて画像として扱う
+        let image: NSImage? = NSImage.canInit(with: pasteboard) ? NSImage(pasteboard: pasteboard) : nil
 
         let kind: ClipboardItem.Kind
         if !fileURLs.isEmpty { kind = .file }

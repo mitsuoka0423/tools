@@ -19,6 +19,8 @@ final class ClipboardPanelModel {
     var query = ""
     var filter: Filter = .all
     var selection = 0
+    /// パネルを開くたびに増やし、検索欄へフォーカスを移すきっかけにする。
+    var focusRequest = 0
 
     init(store: ClipboardStore) { self.store = store }
 
@@ -76,6 +78,8 @@ final class ClipboardPanelController {
             panel.setFrame(CGRect(origin: origin, size: Self.size), display: false)
         }
         panel.makeKeyAndOrderFront(nil)
+        // パネルは使い回すので、開くたびに検索欄へ入力が入るようにする。
+        model.focusRequest += 1
     }
 
     func close() {
@@ -86,12 +90,40 @@ final class ClipboardPanelController {
         let panel = FloatingPanel(contentRect: CGRect(origin: .zero, size: Self.size))
         panel.onResignKey = { [weak self] in self?.close() }
         panel.onCancel = { [weak self] in self?.close() }
+        panel.keyHandler = { [weak self] event in self?.handleKey(event) ?? false }
         panel.setRootView(
             ClipboardPanelView(model: model,
                                onChoose: { [weak self] item, plain in self?.choose(item, plainTextOnly: plain) },
                                onClose: { [weak self] in self?.close() })
         )
         return panel
+    }
+
+    /// ↑↓ で選ぶ、↩︎ で貼り付け（⇧↩︎ はプレーンテキスト）、⌘1〜9 で直接選ぶ。
+    /// それ以外のキーは検索欄へそのまま渡す。
+    private func handleKey(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(Shortcut.relevantModifiers)
+        let items = model.visibleItems
+        switch Int(event.keyCode) {
+        case kVK_DownArrow where flags.isEmpty:
+            model.move(1)
+            return true
+        case kVK_UpArrow where flags.isEmpty:
+            model.move(-1)
+            return true
+        case kVK_Return, kVK_ANSI_KeypadEnter:
+            // 日本語入力の変換中は、↩︎ を確定に使うので渡す。
+            if let editor = panel?.firstResponder as? NSTextView, editor.hasMarkedText() { return false }
+            guard flags.isSubset(of: [.shift]), items.indices.contains(model.selection) else { return true }
+            choose(items[model.selection], plainTextOnly: flags.contains(.shift))
+            return true
+        default:
+            if flags == .command, let n = Int(event.charactersIgnoringModifiers ?? ""), (1...9).contains(n) {
+                if items.indices.contains(n - 1) { choose(items[n - 1], plainTextOnly: false) }
+                return true
+            }
+            return false
+        }
     }
 
     private func choose(_ item: ClipboardItem, plainTextOnly: Bool) {
@@ -142,6 +174,10 @@ struct ClipboardPanelView: View {
         .frame(width: ClipboardPanelController.size.width, height: ClipboardPanelController.size.height)
         .glassEffect(.regular, in: .rect(cornerRadius: outerRadius))
         .onAppear { searchFocused = true }
+        .onChange(of: model.focusRequest) {
+            // パネルが前に出たあとで入力欄に入れる
+            DispatchQueue.main.async { searchFocused = true }
+        }
         .onChange(of: model.query) { model.selection = 0 }
         .onChange(of: model.filter) { model.selection = 0 }
     }
@@ -155,18 +191,7 @@ struct ClipboardPanelView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 20))
                 .focused($searchFocused)
-                .onKeyPress(.downArrow) { model.move(1); return .handled }
-                .onKeyPress(.upArrow) { model.move(-1); return .handled }
-                .onKeyPress(.escape) { onClose(); return .handled }
-                .onKeyPress(keys: [.return]) { press in
-                    choose(items, index: model.selection, plain: press.modifiers.contains(.shift))
-                    return .handled
-                }
-                .onKeyPress(characters: CharacterSet(charactersIn: "123456789")) { press in
-                    guard press.modifiers == .command, let n = Int(press.characters) else { return .ignored }
-                    choose(items, index: n - 1, plain: false)
-                    return .handled
-                }
+                // ↑↓・↩︎・⌘1〜9・esc はパネル（ClipboardPanelController.handleKey）で受け取る
         }
         .padding(.horizontal, 14)
         .frame(height: 44)

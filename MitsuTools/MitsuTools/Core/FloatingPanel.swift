@@ -11,6 +11,9 @@ final class FloatingPanel: NSPanel {
     /// esc を押したときに呼ばれる。
     /// テキスト入力欄は esc を自分で使ってしまい SwiftUI まで届かないので、パネルの段階で拾う。
     var onCancel: (() -> Void)?
+    /// キー入力をテキスト入力欄より先に受け取る。true を返すとそのキーはそこで止める。
+    /// ↑↓や↩︎も入力欄が先に使ってしまうので、一覧の操作はここで行う。
+    var keyHandler: ((NSEvent) -> Bool)?
 
     init(contentRect: NSRect, acceptsKey: Bool = true) {
         super.init(contentRect: contentRect,
@@ -33,6 +36,9 @@ final class FloatingPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, let keyHandler, keyHandler(event) {
+            return
+        }
         if event.type == .keyDown, event.keyCode == UInt16(kVK_Escape),
            event.modifierFlags.intersection(Shortcut.relevantModifiers).isEmpty,
            let onCancel {
