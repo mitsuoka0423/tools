@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>MitsuTools</title>
+        <item>
+            <title>1.0</title>
+            <pubDate>Tue, 10 Nov 2026 05:24:49 +0000</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://mitsutools.spleeing.com/downloads/MitsuTools-1.0.zip" length="2973340" type="application/octet-stream" sparkle:edSignature="La5FCV7OXYvAxE+XcqWUKqL/L5N09bwlggvttRZr2IDrin+qNhqh3EeaEGLgtVpLm5tVdbyEKLOvuqadKg3kAQ=="/>
+        </item>
+    </channel>
+</rss>
