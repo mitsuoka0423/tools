@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ウィンドウ操作（Accessibility API）と自動貼り付け（CGEvent）のため App Sandbox は使わない -->
+</dict>
+</plist>

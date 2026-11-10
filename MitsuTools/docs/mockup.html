@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MitsuTools モック</title>
+<style>
+/* ===== Tokens（macOS のシステムカラー・ラベル色に合わせる） ===== */
+:root{
+  --page:#f2f2f7;
+  --label:rgba(0,0,0,.88); --label2:rgba(0,0,0,.55); --label3:rgba(0,0,0,.30);
+  --sep:rgba(0,0,0,.10); --fill:rgba(0,0,0,.05); --fill2:rgba(0,0,0,.08);
+  --accent:#0088ff; --accent-on:#fff; --green:#34c759; --red:#ff3b30;
+  --window:#ececec; --content:#ffffff; --group:rgba(0,0,0,.035);
+  /* Liquid Glass (regular) */
+  --glass-tint:rgba(255,255,255,.50);
+  --glass-edge:rgba(255,255,255,.75);
+  --glass-shade:rgba(0,0,0,.06);
+  --glass-shadow:0 18px 50px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);
+  --wall:radial-gradient(120% 90% at 10% 0%,#7fb6ff 0%,transparent 55%),radial-gradient(100% 80% at 100% 20%,#ff9ad5 0%,transparent 50%),radial-gradient(120% 100% at 50% 100%,#ffcf7a 0%,transparent 55%),linear-gradient(135deg,#a8c7ff,#f3c1e4);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#000;
+    --label:rgba(255,255,255,.90); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.28);
+    --sep:rgba(255,255,255,.12); --fill:rgba(255,255,255,.07); --fill2:rgba(255,255,255,.11);
+    --accent:#0091ff; --window:#262626; --content:#1e1e1e; --group:rgba(255,255,255,.05);
+    --glass-tint:rgba(40,40,40,.48); --glass-edge:rgba(255,255,255,.22); --glass-shade:rgba(0,0,0,.25);
+    --wall:radial-gradient(120% 90% at 10% 0%,#1d3f8a 0%,transparent 55%),radial-gradient(100% 80% at 100% 20%,#6b1f56 0%,transparent 50%),radial-gradient(120% 100% at 50% 100%,#7a4a10 0%,transparent 55%),linear-gradient(135deg,#0f1c3a,#2b1330);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#000;
+  --label:rgba(255,255,255,.90); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.28);
+  --sep:rgba(255,255,255,.12); --fill:rgba(255,255,255,.07); --fill2:rgba(255,255,255,.11);
+  --accent:#0091ff; --window:#262626; --content:#1e1e1e; --group:rgba(255,255,255,.05);
+  --glass-tint:rgba(40,40,40,.48); --glass-edge:rgba(255,255,255,.22); --glass-shade:rgba(0,0,0,.25);
+  --wall:radial-gradient(120% 90% at 10% 0%,#1d3f8a 0%,transparent 55%),radial-gradient(100% 80% at 100% 20%,#6b1f56 0%,transparent 50%),radial-gradient(120% 100% at 50% 100%,#7a4a10 0%,transparent 55%),linear-gradient(135deg,#0f1c3a,#2b1330);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--label);font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans",sans-serif;-webkit-font-smoothing:antialiased}
+svg.sf{width:1em;height:1em;vertical-align:-.12em;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* ===== Liquid Glass 素材 ===== */
+.glass{
+  position:relative;
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:blur(22px) saturate(1.9) brightness(1.04);
+  backdrop-filter:blur(22px) saturate(1.9) brightness(1.04);
+  box-shadow:var(--glass-shadow), inset 0 1px 0 var(--glass-edge), inset 0 -1px 0 var(--glass-shade), inset 0 0 0 .5px var(--glass-edge);
+}
+.glass::before{ /* 鏡面ハイライト */
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(160deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 32%,rgba(255,255,255,0) 70%,rgba(255,255,255,.12) 100%);
+  mix-blend-mode:overlay;
+}
+/* 透明度を下げる（アクセシビリティ）: 不透明に置き換える */
+html.rt .glass{background:var(--window);-webkit-backdrop-filter:none;backdrop-filter:none}
+html.rt .glass::before{display:none}
+html.hc .glass{box-shadow:var(--glass-shadow),inset 0 0 0 1.5px var(--label)}
+html.hc{--sep:var(--label2)}
+
+/* ===== ページ ===== */
+header{max-width:1120px;margin:auto;padding:28px 16px 6px}
+h1{font:600 26px/1.2 -apple-system,"SF Pro Display",sans-serif;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--label2);margin:0;max-width:760px}
+.bar{max-width:1120px;margin:14px auto 0;padding:0 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--fill);gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--label);font:inherit;padding:5px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--content);box-shadow:0 1px 3px rgba(0,0,0,.15),0 0 0 .5px var(--sep)}
+.a11y{display:flex;gap:14px;color:var(--label2);font-size:12px;flex-wrap:wrap}
+.a11y label{display:flex;gap:5px;align-items:center;cursor:pointer}
+main{max-width:1120px;margin:auto;padding:16px}
+section{display:none}section.on{display:block}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+/* 方針メモ */
+.why{background:var(--content);border-radius:16px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
+.why h3{margin:0 0 8px;font-size:13px}
+.why ul{margin:0;padding-left:18px}
+.why li{margin:3px 0}
+.why .src{color:var(--label2);font-size:11px}
+kbd{font:12px -apple-system,sans-serif;color:var(--label2);letter-spacing:.04em}
+.kc{display:inline-block;font:11px -apple-system,sans-serif;padding:1px 6px;border-radius:5px;background:var(--fill2);color:var(--label)}
+
+/* ===== デスクトップ ===== */
+.desk{position:relative;border-radius:14px;overflow:hidden;background:var(--wall);aspect-ratio:16/10;min-height:420px;box-shadow:0 0 0 .5px var(--sep)}
+.mbar{position:absolute;inset:0 0 auto 0;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;color:#fff;text-shadow:0 0 6px rgba(0,0,0,.25);z-index:50}
+.mbar .l,.mbar .r{display:flex;gap:16px;align-items:center}
+.mbar b{font-weight:700}
+.extra{display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;border-radius:6px}
+.extra.on{background:rgba(255,255,255,.28)}
+.app-win{position:absolute;border-radius:16px;background:var(--content);box-shadow:0 14px 40px rgba(0,0,0,.25),0 0 0 .5px var(--sep);overflow:hidden}
+.app-win .tb{height:30px;display:flex;align-items:center;gap:7px;padding:0 11px}
+.tl{width:11px;height:11px;border-radius:50%;display:inline-block}
+.tl.r{background:#ff5f57}.tl.y{background:#febc2e}.tl.g{background:#28c840}.tl.d{background:var(--fill2)}
+.app-win .ph{margin:8px 14px;height:8px;border-radius:4px;background:var(--fill2)}
+
+/* ===== メニュー（Tahoe：Liquid Glass + アイコン） ===== */
+.menu{position:absolute;right:86px;top:28px;width:278px;border-radius:14px;padding:5px;z-index:60}
+.mi{display:flex;align-items:center;gap:8px;padding:4px 9px;border-radius:8px;height:26px;position:relative}
+.mi .ic{width:16px;text-align:center;color:var(--label)}
+.mi .t{flex:1}
+.mi kbd{color:var(--label2)}
+.mi:hover{background:var(--accent);color:#fff}.mi:hover kbd,.mi:hover .ic{color:#fff}
+.msep{height:1px;background:var(--sep);margin:5px 10px}
+.mhd{font-size:11px;font-weight:600;color:var(--label2);padding:3px 10px 1px}
+
+/* ===== クリップボード（Spotlight 型の一時パネル） ===== */
+.cb{position:absolute;left:50%;top:13%;transform:translateX(-50%);width:min(640px,calc(100% - 32px));border-radius:26px;padding:8px;z-index:40}
+.cb-search{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border-radius:18px}
+.cb-search svg{font-size:18px;color:var(--label2)}
+.cb-search input{flex:1;border:0;outline:0;background:transparent;color:var(--label);font:400 20px -apple-system,"SF Pro Display",sans-serif}
+.cb-search input::placeholder{color:var(--label3)}
+.cb-filter{display:flex;gap:4px;padding:2px 8px 8px}
+.chip{border:0;font:inherit;font-size:12px;color:var(--label);background:var(--fill);padding:3px 11px;border-radius:999px;cursor:pointer}
+.chip.on{background:var(--accent);color:#fff}
+.cb-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;height:262px}
+.cb-list{overflow:auto;padding:2px;scrollbar-width:thin;scroll-padding-block:30px;--ft:0px;--fb:0px;-webkit-mask-image:linear-gradient(transparent,#000 var(--ft),#000 calc(100% - var(--fb)),transparent);mask-image:linear-gradient(transparent,#000 var(--ft),#000 calc(100% - var(--fb)),transparent)}
+.cb-list.st{--ft:22px}.cb-list.sb{--fb:28px}
+.cb-row{display:flex;gap:8px;align-items:center;height:30px;padding:0 10px;border-radius:10px;cursor:default}
+.cb-row .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cb-row kbd{font-size:11px}
+.cb-row.sel{background:var(--accent);color:#fff}.cb-row.sel kbd{color:rgba(255,255,255,.8)}
+.cb-row.off{color:var(--label3)}
+.cb-pv{border-radius:18px;background:var(--fill);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.cb-pv pre{margin:0;flex:1;white-space:pre-wrap;word-break:break-all;font:12px ui-monospace,"SF Mono",Menlo,monospace;overflow:auto}
+.cb-pv .img{flex:1;border-radius:10px;background:linear-gradient(135deg,#9ac2ff,#f6b7dd)}
+.meta{font-size:11px;color:var(--label2)}
+.cb-foot{display:flex;gap:16px;justify-content:flex-end;padding:8px 10px 2px;font-size:11px;color:var(--label2);flex-wrap:wrap}
+@media (max-width:640px){.cb-body{grid-template-columns:1fr}.cb-pv{display:none}}
+
+/* ===== ウィンドウ管理 ===== */
+.wins{position:absolute;inset:24px 0 0 0}
+.w{position:absolute;border-radius:14px;background:var(--content);box-shadow:0 10px 30px rgba(0,0,0,.22),0 0 0 .5px var(--sep);overflow:hidden;transition:left .38s cubic-bezier(.2,.9,.25,1.05),top .38s cubic-bezier(.2,.9,.25,1.05),width .38s cubic-bezier(.2,.9,.25,1.05),height .38s cubic-bezier(.2,.9,.25,1.05);cursor:default}
+.w .tb{height:24px;display:flex;align-items:center;gap:5px;padding:0 9px;font-size:11px;color:var(--label2)}
+.w .tb .tl{width:9px;height:9px}
+.w .tb span{margin-left:6px;white-space:nowrap}
+.w:not(.focus) .tl{background:var(--fill2)}
+.ov{position:absolute;inset:24px 0 0 0;z-index:30;display:none;padding:var(--m,12px);gap:var(--g,12px);background:rgba(0,0,0,.18)}
+.ov.on{display:grid}
+.cell{border-radius:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.65);transition:background .15s}
+.cell:hover{background:color-mix(in srgb,var(--accent) 38%,transparent)}
+.cell .n{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 20px -apple-system,"SF Pro Rounded",sans-serif;color:var(--label)}
+.hud{position:absolute;left:50%;bottom:18px;transform:translate(-50%,10px);opacity:0;border-radius:999px;padding:9px 18px;display:flex;gap:10px;align-items:center;z-index:45;transition:opacity .2s,transform .2s;font-weight:500;white-space:nowrap}
+.hud.on{opacity:1;transform:translate(-50%,0)}
+.hud .gl{display:inline-grid;gap:2px;width:30px;height:19px}
+.hud .gl i{background:var(--label3);border-radius:2px}
+.hud .gl i.hit{background:var(--accent)}
+
+/* 操作パネル（モック用の説明 UI。実アプリには出ない） */
+.ctl{background:var(--content);border-radius:18px;padding:14px;box-shadow:0 0 0 .5px var(--sep)}
+.ctl h4{margin:12px 0 6px;font-size:11px;font-weight:600;color:var(--label2)}
+.ctl h4:first-child{margin-top:0}
+.pick{display:grid;gap:4px;aspect-ratio:16/10;padding:4px;border-radius:12px;background:var(--fill)}
+.pick div{border-radius:8px;background:var(--content);display:flex;align-items:center;justify-content:center;color:var(--label2);cursor:pointer;box-shadow:0 0 0 .5px var(--sep)}
+.pick div:hover{background:var(--accent);color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:999px;font:inherit;padding:6px 14px;cursor:pointer;background:var(--fill2);color:var(--label)}
+.btn.pri{background:var(--accent);color:#fff}
+.row2{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.slider{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.slider label{display:flex;justify-content:space-between}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.disp{display:grid;grid-template-columns:1.35fr 1fr;gap:8px;align-items:end;height:64px;position:relative;margin-top:4px}
+.disp div{height:100%;border-radius:8px;background:var(--wall);box-shadow:0 0 0 .5px var(--sep)}
+.disp div+div{height:76%}
+.disp i{position:absolute;border-radius:4px;background:var(--content);box-shadow:0 0 0 1.5px var(--accent);transition:all .35s cubic-bezier(.2,.9,.25,1.05)}
+
+/* ===== 設定ウィンドウ（ツールバー型の切り替え） ===== */
+.setwrap{display:flex;justify-content:center;padding:28px 12px;border-radius:14px;background:var(--wall)}
+.swin{width:min(600px,100%);border-radius:26px;background:var(--window);box-shadow:0 22px 60px rgba(0,0,0,.28),0 0 0 .5px var(--sep);overflow:hidden}
+.swin .top{padding:10px 12px 8px;display:grid;grid-template-columns:70px 1fr 70px;align-items:start}
+.swin .top .tls{display:flex;gap:7px;padding-top:4px}
+.swin .ttl{text-align:center;font-weight:600;padding-top:1px}
+.tbar{display:flex;justify-content:center;gap:2px;padding:6px;border-radius:999px;margin:6px auto 0;width:max-content;max-width:100%;flex-wrap:wrap}
+.tbtn{border:0;background:transparent;color:var(--label);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 10px;border-radius:999px;cursor:pointer;min-width:62px}
+.tbtn svg{font-size:19px}
+.tbtn.on{background:var(--fill2);color:var(--accent)}
+.form{padding:6px 20px 22px}
+.gp{background:var(--group);border-radius:14px;padding:0 12px;margin:12px 0;box-shadow:0 0 0 .5px var(--sep)}
+.gp .r{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:6px 0;border-bottom:1px solid var(--sep)}
+.gp .r:last-child{border-bottom:0}
+.gp .r .sub{display:block;font-size:11px;color:var(--label2)}
+.gh{font-size:11px;font-weight:600;color:var(--label2);margin:16px 4px -6px}
+.tog{width:38px;height:22px;border-radius:999px;background:var(--green);position:relative;flex:none;cursor:pointer;transition:background .2s}
+.tog::after{content:"";position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+.tog.off{background:var(--fill2)}.tog.off::after{left:2px}
+.pop{font:inherit;color:var(--label);background:var(--content);border:0;border-radius:7px;padding:3px 8px;box-shadow:0 0 0 .5px var(--sep),0 1px 2px rgba(0,0,0,.1)}
+.rec{display:inline-flex;align-items:center;gap:6px;min-width:110px;justify-content:center;font:inherit;color:var(--label);background:var(--content);border:0;border-radius:999px;padding:3px 10px;box-shadow:0 0 0 .5px var(--sep);cursor:pointer}
+.rec.rec-on{box-shadow:0 0 0 2px var(--accent);color:var(--accent)}
+.rec .x{color:var(--label3)}
+.stepper{display:inline-flex;align-items:center;gap:8px}
+.ok{color:var(--green)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><path d="M12 4.5v15M3.5 12h17"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="5.5" y="4.5" width="13" height="16" rx="2.5"/><path d="M9 4.5V3.8c0-.7.5-1.3 1.2-1.3h3.6c.7 0 1.2.6 1.2 1.3v.7M9 10h6M9 13.5h6M9 17h3.5"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/></symbol>
+  <symbol id="i-update" viewBox="0 0 24 24"><path d="M19 12a7 7 0 0 1-12.2 4.7M5 12a7 7 0 0 1 12.2-4.7"/><path d="M17.5 3.8v3.9h-3.9M6.5 20.2v-3.9h3.9"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M7 6.3a7.5 7.5 0 1 0 10 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></symbol>
+  <symbol id="i-win" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><path d="M3.5 9h17"/><rect x="6" y="11.5" width="5.5" height="5.5" rx="1.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+</svg>
+
+<header>
+  <h1>MitsuTools モック</h1>
+  <p class="lead">Apple の Human Interface Guidelines（Liquid Glass / Materials / The menu bar / Menus / Settings / Panels）に合わせて画面を組み直した版です。各画面の下に、どのガイドラインに沿ったかを書いています。</p>
+</header>
+<div class="bar">
+  <div class="seg" id="tabs">
+    <button data-t="menu" class="on">メニューバー</button>
+    <button data-t="clip">クリップボード</button>
+    <button data-t="wm">ウィンドウ管理</button>
+    <button data-t="set">設定</button>
+  </div>
+  <div class="a11y">
+    <label><input type="checkbox" id="dark"> ダークモード</label>
+    <label><input type="checkbox" id="rt"> 透明度を下げる</label>
+    <label><input type="checkbox" id="hc"> コントラストを上げる</label>
+  </div>
+</div>
+
+<main>
+<!-- ================= メニューバー ================= -->
+<section id="menu" class="on">
+  <div class="cols">
+    <div class="desk">
+      <div class="mbar"><div class="l"><span></span><b>Finder</b><span>ファイル</span><span>編集</span><span>表示</span></div>
+        <div class="r"><span class="extra on"><svg class="sf" style="font-size:16px"><use href="#i-grid"/></svg></span><span>Wi‑Fi</span><span>11月10日(火) 9:41</span></div></div>
+      <div class="app-win" style="left:7%;top:16%;width:46%;height:62%"><div class="tb"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></div><div class="ph" style="width:60%"></div><div class="ph" style="width:80%"></div><div class="ph" style="width:45%"></div></div>
+      <div class="menu glass">
+        <div class="mi"><span class="ic"><svg class="sf"><use href="#i-clip"/></svg></span><span class="t">クリップボード履歴を表示</span><kbd>⇧⌘V</kbd></div>
+        <div class="mi"><span class="ic"><svg class="sf"><use href="#i-pause"/></svg></span><span class="t">記録を一時停止</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span class="ic"><svg class="sf"><use href="#i-update"/></svg></span><span class="t">アップデートを確認…</span></div>
+        <div class="mi"><span class="ic"><svg class="sf"><use href="#i-gear"/></svg></span><span class="t">設定…</span><kbd>⌘,</kbd></div>
+        <div class="msep"></div>
+        <div class="mi"><span class="ic"><svg class="sf"><use href="#i-power"/></svg></span><span class="t">MitsuTools を終了</span><kbd>⌘Q</kbd></div>
+      </div>
+    </div>
+    <div class="why">
+      <h3>設計のポイント</h3>
+      <ul>
+        <li>アイコンは SF Symbols 風の<b>テンプレート画像</b>（黒＋透明）。色はシステムが明暗のメニューバーに合わせて塗る。高さ 24pt のバーに収める。<span class="src">— The menu bar</span></li>
+        <li>クリックで出すのは<b>ポップオーバーではなく標準メニュー</b>。Tahoe では標準メニューが自動で Liquid Glass になる。<span class="src">— The menu bar / Materials</span></li>
+        <li>メニュー項目には<b>アイコンを付ける</b>。同じグループ内では全項目に付けて見た目をそろえる。<span class="src">— Menus</span></li>
+        <li>入力が必要な項目は末尾に「…」。使えない項目は隠さずグレーにする。<span class="src">— Menus</span></li>
+        <li>メニューバーに出すかどうかは利用者が決める（設定に「メニューバーに表示」を用意）。非表示にしても、アプリをもう一度開けば設定ウィンドウが開く。<span class="src">— The menu bar</span></li>
+        <li>ショートカット表記は macOS の順序 <span class="kc">⌃⌥⇧⌘</span> に統一（例：⇧⌘V）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= クリップボード ================= -->
+<section id="clip">
+  <div class="cols">
+    <div class="desk" style="aspect-ratio:auto;min-height:470px">
+      <div class="mbar"><div class="l"><span></span><b>メモ</b></div><div class="r"><span class="extra"><svg class="sf" style="font-size:16px"><use href="#i-grid"/></svg></span><span>9:41</span></div></div>
+      <div class="app-win" style="left:5%;top:12%;width:60%;height:78%"><div class="tb"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></div><div class="ph" style="width:50%"></div><div class="ph" style="width:85%"></div><div class="ph" style="width:70%"></div><div class="ph" style="width:40%"></div></div>
+      <div class="cb glass">
+        <div class="cb-search"><svg class="sf"><use href="#i-search"/></svg><input id="q" placeholder="クリップボード履歴を検索" autocomplete="off"></div>
+        <div class="cb-filter" id="ctabs">
+          <button class="chip on" data-k="all">すべて</button><button class="chip" data-k="text">テキスト</button><button class="chip" data-k="img">画像</button><button class="chip" data-k="file">ファイル</button>
+        </div>
+        <div class="cb-body"><div class="cb-list" id="list"></div><div class="cb-pv" id="pv"></div></div>
+        <div class="cb-foot"><span id="ccount" style="margin-right:auto"></span><span><kbd>↩</kbd> 貼り付け</span><span><kbd>⇧↩</kbd> プレーンテキストで貼り付け</span><span><kbd>⌘1〜9</kbd> 直接選択</span><span><kbd>esc</kbd> 閉じる</span></div>
+      </div>
+    </div>
+    <div class="why">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="meta">デモの履歴件数</span><div class="seg" id="vol"><button data-v="few">6 件</button><button data-v="many" class="on">200 件</button></div></div>
+      <h3>設計のポイント</h3>
+      <ul>
+        <li><b>履歴が多いとき</b>：一覧だけがスクロールし、検索欄と絞り込みは上に固定。上下の端はスクロールエッジ効果（ぼかしてフェード）で、続きがあることを示す。左下に「選択位置 / 件数」を出す。<kbd>↑↓</kbd> で選ぶと選択行が常に見える位置までスクロールする。<kbd>⌘1〜9</kbd> は表示中の先頭 9 件だけ。</li>
+        <li>Spotlight と同じ<b>一時的なフローティングパネル</b>（タイトルバーなし）。ホットキーで出し、選ぶか <kbd>esc</kbd>、ほかをクリックで消える。</li>
+        <li>パネル全体は Liquid Glass の<b>regular</b>（背後をぼかして明るさを整える）。文字が多い部品は regular を使う、という指針どおり。<span class="src">— Materials</span></li>
+        <li>角丸は<b>同心円</b>：外側 26pt、内側の検索欄とプレビューは 18pt（外側 − 余白 8pt）。</li>
+        <li>中身の一覧やプレビューにはガラスを重ねない（コンテンツ層にガラスを使わない）。プレビューは薄い塗りで区切るだけ。<span class="src">— Materials</span></li>
+        <li>選択行はシステムのアクセントカラー。文字はラベル色の階層（主・副・三次）で強弱を付ける。</li>
+        <li>機密データ（ConcealedType）と除外アプリのコピーは記録しない。履歴はメモリ上だけ。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ウィンドウ管理 ================= -->
+<section id="wm">
+  <div class="cols">
+    <div>
+      <div class="desk" id="wdesk">
+        <div class="mbar"><div class="l"><span></span><b id="mbapp">Safari</b></div><div class="r"><span class="extra"><svg class="sf" style="font-size:16px"><use href="#i-grid"/></svg></span><span>9:41</span></div></div>
+        <div class="wins" id="wins"></div>
+        <div class="ov" id="ov"></div>
+        <div class="hud glass" id="hud"><span class="gl" id="hudgl"></span><span id="hudt"></span></div>
+      </div>
+      <div class="why" style="margin-top:14px">
+        <h3>設計のポイント</h3>
+        <ul>
+          <li>1 回の操作で動くのは<b>アクティブウィンドウ 1 つだけ</b>。指定したマスにぴったり収まるよう位置と大きさを変える。</li>
+          <li>操作の直後に、画面下へ小さな <b>HUD</b>（Liquid Glass のカプセル）を約 1 秒出し、どのマスに、どの幅で収めたかを知らせる。1/2→1/3→2/3 のループで今どこにいるかがわかる。</li>
+          <li><kbd>⌃⌥G</kbd> のオーバーレイは画面全体を 18% だけ暗くし、マスは白い枠線＋番号の<b>ガラスのボタン</b>で示す。ガラスを使うのは操作できる番号ボタンだけに絞る。<span class="src">— Materials「ガラスは控えめに」</span></li>
+          <li>ウィンドウの移動・伸縮はシステムと同じ、少しはずむアニメーション。「視差効果を減らす」がオンのときはフェードだけにする。</li>
+          <li>ディスプレイ移動は端でループする。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ctl">
+      <p class="meta" style="margin:0 0 10px">この右側はモックを操作するための説明用です。実アプリでは、ここでの操作をショートカットで行います。</p>
+      <h4>レイアウト</h4>
+      <div class="seg" id="layout" style="width:100%"><button data-l="1x2" style="flex:1">1×2</button><button data-l="2x2" class="on" style="flex:1">2×2</button><button data-l="2x3" style="flex:1">2×3</button></div>
+      <h4>マスを選ぶ（アクティブ：<span id="act">Safari</span>）</h4>
+      <div class="pick" id="cells"></div>
+      <div class="row2"><button class="btn pri" id="ovbtn">オーバーレイを表示 <kbd style="color:rgba(255,255,255,.8)">⌃⌥G</kbd></button><button class="btn" id="scatter">元に戻す</button></div>
+      <h4>ディスプレイ移動 <kbd>⌃⌥⌘← →</kbd></h4>
+      <div class="disp" id="disp"><div></div><div></div><i id="dwin"></i></div>
+      <div class="row2"><button class="btn" id="dprev">← 前へ</button><button class="btn" id="dnext">次へ →</button></div>
+      <h4>間隔</h4>
+      <div class="slider"><label>ウィンドウ間のギャップ <span id="gv">12 pt</span></label><input type="range" id="gap" min="0" max="40" value="12"></div>
+      <div class="slider"><label>画面端の余白 <span id="mv">12 pt</span></label><input type="range" id="mar" min="0" max="40" value="12"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 設定 ================= -->
+<section id="set">
+  <div class="cols">
+    <div class="setwrap">
+      <div class="swin">
+        <div class="top">
+          <div class="tls"><i class="tl r"></i><i class="tl d"></i><i class="tl d"></i></div>
+          <div><div class="ttl" id="stitle">一般</div>
+            <div class="tbar glass" id="stabs">
+              <button class="tbtn on" data-p="gen"><svg class="sf"><use href="#i-gear"/></svg>一般</button>
+              <button class="tbtn" data-p="clipset"><svg class="sf"><use href="#i-clip"/></svg>クリップボード</button>
+              <button class="tbtn" data-p="wmset"><svg class="sf"><use href="#i-win"/></svg>ウィンドウ</button>
+              <button class="tbtn" data-p="upd"><svg class="sf"><use href="#i-update"/></svg>アップデート</button>
+            </div>
+          </div><div></div>
+        </div>
+        <div class="form" id="pane"></div>
+      </div>
+    </div>
+    <div class="why">
+      <h3>設計のポイント</h3>
+      <ul>
+        <li>macOS のアプリ設定は<b>ツールバーでペインを切り替える</b>形にする（前回のサイドバー案から変更）。ツールバーは並べ替え不可で、選んでいるボタンを常に示す。<span class="src">— Settings</span></li>
+        <li>ウィンドウのタイトルは表示中のペイン名にする。次に開いたときは最後に見たペインを出す。<span class="src">— Settings</span></li>
+        <li>最小化・拡大ボタンはグレーにする（<kbd>⌘,</kbd> ですぐ開けるため）。<span class="src">— Settings</span></li>
+        <li>ツールバーは Liquid Glass で中身の上に浮かせ、フォーム部分（コンテンツ層）は通常の背景にする。<span class="src">— Materials</span></li>
+        <li>OK／キャンセルは置かず、変更はその場で反映する。項目数はできるだけ絞る。<span class="src">— Settings</span></li>
+        <li>モジュールを足すと、ツールバーにペインが 1 つ増える（拡張性）。</li>
+        <li>ショートカットは<b>録音式</b>の入力欄：クリックして新しいキーを押すと登録。ほかと重なったときは、その場で警告を出す。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+// ---- 表示切り替え・アクセシビリティ
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t));
+  if(b.dataset.t==='wm'){scatter();drawDisp();}
+});
+$('dark').checked=false;document.documentElement.dataset.theme='light';
+$('dark').onchange=e=>document.documentElement.dataset.theme=e.target.checked?'dark':'light';
+$('rt').onchange=e=>document.documentElement.classList.toggle('rt',e.target.checked);
+$('hc').onchange=e=>document.documentElement.classList.toggle('hc',e.target.checked);
+
+// ---- クリップボード
+const items=[
+  {k:'text',t:'func snap(_ window: AXUIElement, to cell: Cell)',app:'Xcode',ago:'たった今',body:'func snap(_ window: AXUIElement, to cell: Cell) {\n    let frame = layout.frame(for: cell, gap: gap)\n    window.setFrame(frame)\n}'},
+  {k:'text',t:'https://developer.apple.com/design/human-interface-guidelines',app:'Safari',ago:'2 分前',body:'https://developer.apple.com/design/human-interface-guidelines'},
+  {k:'img',t:'スクリーンショット 1440×900',app:'スクリーンショット',ago:'5 分前',img:true},
+  {k:'text',t:'明日の定例は 10:00 から会議室 B です',app:'Slack',ago:'12 分前',body:'明日の定例は 10:00 から会議室 B です'},
+  {k:'file',t:'設計メモ.pdf',app:'Finder',ago:'30 分前',body:'~/Documents/設計メモ.pdf'},
+  {k:'text',t:'git switch -c feature/window-snap',app:'ターミナル',ago:'1 時間前',body:'git switch -c feature/window-snap'},
+];
+const fewItems=items.slice();
+const manyItems=(()=>{
+  const seeds=[
+    ['text','npm run build -- --watch','ターミナル'],['text','ご確認よろしくお願いいたします。','メール'],['text','https://github.com/mitsuoka0423/tools/pull/12','Safari'],
+    ['img','スクリーンショット 2560×1440','スクリーンショット'],['text','SELECT * FROM users WHERE created_at > now() - interval \'7 days\';','TablePlus'],
+    ['file','見積書_2026-11.xlsx','Finder'],['text','〒100-0001 東京都千代田区千代田 1-1','メモ'],['text','let gap: CGFloat = 12','Xcode'],
+    ['text','来週の打ち合わせ候補：11/17 14:00、11/18 10:00','Slack'],['img','デザイン案_v3.png','プレビュー'],['text','brew upgrade --cask','ターミナル'],
+    ['text','The quick brown fox jumps over the lazy dog.','テキストエディット'],['file','議事録_定例_1110.md','Finder'],['text','#0088FF','Xcode']];
+  const agoOf=i=>i<6?`${i*4+2} 分前`:i<30?`${Math.floor(i/3)} 時間前`:i<80?'昨日':`${Math.floor(i/25)+1} 日前`;
+  const out=items.slice();
+  for(let i=out.length;i<200;i++){const [k,t,app]=seeds[i%seeds.length];out.push({k,t,app,ago:agoOf(i),body:t,img:k==='img'})}
+  return out;
+})();
+let cfilter='all',csel=0,src=manyItems;
+function renderClip(){
+  const q=$('q').value.toLowerCase();
+  const vis=src.filter(x=>(cfilter==='all'||x.k===cfilter)&&x.t.toLowerCase().includes(q));
+  csel=Math.min(csel,Math.max(vis.length-1,0));
+  $('list').innerHTML=vis.map((x,n)=>`<div class="cb-row ${n===csel?'sel':''}" data-n="${n}"><span class="t">${x.t}</span><kbd>${n<9?'⌘'+(n+1):''}</kbd></div>`).join('')||'<div class="meta" style="padding:10px">一致する項目はありません</div>';
+  const s=vis[csel];
+  $('pv').innerHTML=s?(s.img?'<div class="img"></div>':`<pre>${s.body}</pre>`)+`<div class="meta">${s.app} ・ ${s.ago}</div>`:'';
+  $('ccount').textContent=vis.length?`${csel+1} / ${vis.length} 件`:'';
+  document.querySelectorAll('.cb-row').forEach(r=>r.onmouseenter=()=>{if(csel===+r.dataset.n)return;csel=+r.dataset.n;markSel()});
+  document.querySelector('.cb-row.sel')?.scrollIntoView({block:'nearest'});
+  if(typeof edges==='function')edges();
+}
+function markSel(){document.querySelectorAll('.cb-row').forEach(r=>r.classList.toggle('sel',+r.dataset.n===csel));const st=$('list').scrollTop;renderClip();$('list').scrollTop=st}
+document.querySelectorAll('#vol button').forEach(b=>b.onclick=()=>{src=b.dataset.v==='many'?manyItems:fewItems;csel=0;document.querySelectorAll('#vol button').forEach(x=>x.classList.toggle('on',x===b));renderClip();$('list').scrollTop=0});
+function edges(){const l=$('list');l.classList.toggle('st',l.scrollTop>2);l.classList.toggle('sb',l.scrollTop+l.clientHeight<l.scrollHeight-2)}
+$('list').addEventListener('scroll',edges);
+$('q').oninput=()=>{csel=0;renderClip()};
+$('q').onkeydown=e=>{if(e.key==='ArrowDown'){csel++;renderClip();e.preventDefault()}if(e.key==='ArrowUp'){csel=Math.max(0,csel-1);renderClip();e.preventDefault()}};
+document.querySelectorAll('#ctabs .chip').forEach(s=>s.onclick=()=>{cfilter=s.dataset.k;csel=0;document.querySelectorAll('#ctabs .chip').forEach(x=>x.classList.toggle('on',x===s));renderClip()});
+renderClip();
+
+// ---- ウィンドウ管理
+const names=['Safari','Xcode','ターミナル','メモ','Finder'];
+let layout='2x2',active=0,z=10,lastSide=null,hudTimer;
+const placed={};
+const CYCLE=[1/2,1/3,2/3],CYCLE_LABEL=['1/2','1/3','2/3'];
+const dims=l=>l.split('x').map(Number);
+function buildWins(){
+  $('wins').innerHTML=names.map((nm,i)=>`<div class="w" id="w${i}" data-i="${i}"><div class="tb"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i><span>${nm}</span></div><div class="ph" style="margin:8px 12px;height:6px;border-radius:3px;background:var(--fill2);width:60%"></div></div>`).join('');
+  document.querySelectorAll('.w').forEach(el=>el.onmousedown=()=>activate(+el.dataset.i));
+}
+function activate(i){
+  active=i;
+  document.querySelectorAll('.w').forEach(el=>{const on=+el.dataset.i===i;el.classList.toggle('focus',on);if(on)el.style.zIndex=++z;});
+  $('act').textContent=names[i];$('mbapp').textContent=names[i];
+}
+function place(el,[x,y,w,h]){Object.assign(el.style,{left:x+'%',top:y+'%',width:w+'%',height:h+'%'})}
+function scatter(){
+  for(const k in placed)delete placed[k];lastSide=null;
+  buildWins();
+  [...$('wins').children].forEach((el,i)=>place(el,[5+(i*12)%52,6+(i*9)%38,40,50]));
+  activate(0);
+}
+function scale(){const b=$('wins').getBoundingClientRect();return {b,k:b.width/1512}} // 1512pt 幅の画面として縮尺
+function cellRect(lay,idx,step){
+  const [rows,cols]=dims(lay),{b,k}=scale(),g=+$('gap').value*k,m=+$('mar').value*k;
+  const P=(x,y,w,h)=>[x/b.width*100,y/b.height*100,w/b.width*100,h/b.height*100];
+  if(lay==='1x2'){const w=(b.width-2*m-g)*CYCLE[step||0];return P(idx===0?m:b.width-m-w,m,w,b.height-2*m)}
+  const cw=(b.width-2*m-(cols-1)*g)/cols,ch=(b.height-2*m-(rows-1)*g)/rows,r=Math.floor(idx/cols),c=idx%cols;
+  return P(m+c*(cw+g),m+r*(ch+g),cw,ch);
+}
+function showHud(lay,idx,step){
+  const [rows,cols]=dims(lay);
+  $('hudgl').style.cssText=`grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)`;
+  if(lay==='1x2'){
+    const f=CYCLE[step];$('hudgl').style.gridTemplateColumns=idx===0?`${f}fr ${1-f}fr`:`${1-f}fr ${f}fr`;
+    $('hudgl').innerHTML=`<i class="${idx===0?'hit':''}"></i><i class="${idx===1?'hit':''}"></i>`;
+    $('hudt').textContent=`${idx===0?'左':'右'} ${CYCLE_LABEL[step]}`;
+  }else{
+    $('hudgl').innerHTML=Array.from({length:rows*cols},(_,j)=>`<i class="${j===idx?'hit':''}"></i>`).join('');
+    $('hudt').textContent=`${rows}×${cols} のマス ${idx+1}`;
+  }
+  $('hud').classList.add('on');clearTimeout(hudTimer);hudTimer=setTimeout(()=>$('hud').classList.remove('on'),1100);
+}
+function snap(idx){
+  let step=0;
+  if(layout==='1x2'){
+    if(lastSide&&lastSide.win===active&&lastSide.side===idx)step=(lastSide.step+1)%3;
+    lastSide={win:active,side:idx,step};
+  }else lastSide=null;
+  placed[active]={lay:layout,idx,step};
+  place($('w'+active),cellRect(layout,idx,step));
+  $('ov').classList.remove('on');
+  showHud(layout,idx,step);
+}
+function relayout(){for(const k in placed)place($('w'+k),cellRect(placed[k].lay,placed[k].idx,placed[k].step))}
+function buildCells(){
+  const [rows,cols]=dims(layout),tpl=`grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)`;
+  const lab=i=>layout==='1x2'?(i===0?'← 左':'右 →'):i+1;
+  $('cells').style.cssText=tpl;
+  $('cells').innerHTML=Array.from({length:rows*cols},(_,i)=>`<div data-i="${i}">${lab(i)}</div>`).join('');
+  $('ov').style.gridTemplateColumns=`repeat(${cols},1fr)`;$('ov').style.gridTemplateRows=`repeat(${rows},1fr)`;
+  $('ov').innerHTML=Array.from({length:rows*cols},(_,i)=>`<div class="cell" data-i="${i}"><span class="n glass">${layout==='1x2'?(i===0?'←':'→'):i+1}</span></div>`).join('');
+  document.querySelectorAll('#cells div,#ov .cell').forEach(c=>c.onclick=()=>snap(+c.dataset.i));
+  syncOv();
+}
+function syncOv(){const {k}=scale();$('ov').style.setProperty('--g',(+$('gap').value*k)+'px');$('ov').style.setProperty('--m',(+$('mar').value*k)+'px')}
+document.querySelectorAll('#layout button').forEach(b=>b.onclick=()=>{layout=b.dataset.l;document.querySelectorAll('#layout button').forEach(x=>x.classList.toggle('on',x===b));buildCells()});
+$('gap').oninput=()=>{$('gv').textContent=$('gap').value+' pt';relayout();syncOv()};
+$('mar').oninput=()=>{$('mv').textContent=$('mar').value+' pt';relayout();syncOv()};
+$('ovbtn').onclick=()=>$('ov').classList.toggle('on');
+$('scatter').onclick=scatter;
+let disp=0;
+function drawDisp(){
+  const ds=$('disp').children,r=ds[disp].getBoundingClientRect(),p=$('disp').getBoundingClientRect();
+  Object.assign($('dwin').style,{left:(r.left-p.left+r.width*.08)+'px',top:(r.top-p.top+r.height*.14)+'px',width:(r.width*.46)+'px',height:(r.height*.6)+'px'});
+}
+$('dprev').onclick=()=>{disp=(disp+1)%2;drawDisp()};
+$('dnext').onclick=()=>{disp=(disp+1)%2;drawDisp()};
+buildCells();scatter();addEventListener('resize',()=>{relayout();syncOv();drawDisp()});
+
+// ---- 設定
+const rec=(k)=>`<button class="rec">${k} <span class="x">⊗</span></button>`;
+const tog=(on=true)=>`<span class="tog ${on?'':'off'}"></span>`;
+const panes={
+gen:['一般',`
+<div class="gp"><div class="r"><span>ログイン時に開く</span>${tog()}</div>
+<div class="r"><span>メニューバーに表示<span class="sub">オフにしても、アプリをもう一度開けば設定が開きます</span></span>${tog()}</div></div>
+<div class="gh">権限</div>
+<div class="gp"><div class="r"><span>アクセシビリティ<span class="sub">ウィンドウの移動と自動貼り付けに必要です</span></span><span class="ok">● 許可済み</span></div></div>
+<div class="gh">機能</div>
+<div class="gp"><div class="r"><span>クリップボード履歴</span>${tog()}</div>
+<div class="r"><span>ウィンドウ配置</span>${tog()}</div></div>`],
+clipset:['クリップボード',`
+<div class="gp"><div class="r"><span>履歴を表示</span>${rec('⇧⌘V')}</div>
+<div class="r"><span>保持する件数</span><select class="pop"><option>50</option><option selected>200</option><option>500</option></select></div>
+<div class="r"><span>選んだ項目をすぐ貼り付ける</span>${tog()}</div></div>
+<div class="gh">プライバシー</div>
+<div class="gp"><div class="r"><span>パスワードなどの機密データを記録しない</span>${tog()}</div>
+<div class="r"><span>記録しないアプリ</span><button class="btn" style="padding:3px 10px">編集…</button></div></div>
+<p class="meta" style="margin:8px 4px 0">履歴はメモリ上だけに保持し、終了すると消えます。</p>`],
+wmset:['ウィンドウ',`
+<div class="gp"><div class="r"><span>ウィンドウ間のギャップ</span><span class="stepper"><input type="range" min="0" max="40" value="12" style="width:120px"> 12 pt</span></div>
+<div class="r"><span>画面端の余白</span><span class="stepper"><input type="range" min="0" max="40" value="12" style="width:120px"> 12 pt</span></div></div>
+<div class="gh">ショートカット</div>
+<div class="gp"><div class="r"><span>マスを選んで配置</span>${rec('⌃⌥G')}</div>
+<div class="r"><span>左へ（1/2 → 1/3 → 2/3）</span>${rec('⌃⌥←')}</div>
+<div class="r"><span>右へ（1/2 → 1/3 → 2/3）</span>${rec('⌃⌥→')}</div>
+<div class="r"><span>2×2 のマス 1〜4</span>${rec('⌃⌥1〜4')}</div>
+<div class="r"><span>2×3 のマス 1〜6</span>${rec('⌃⌥⇧1〜6')}</div>
+<div class="r"><span>前のディスプレイへ</span>${rec('⌃⌥⌘←')}</div>
+<div class="r"><span>次のディスプレイへ</span>${rec('⌃⌥⌘→')}</div></div>`],
+upd:['アップデート',`
+<div class="gp"><div class="r"><span>アップデートを自動で確認</span>${tog()}</div>
+<div class="r"><span>アップデートを自動でダウンロード</span>${tog(false)}</div></div>
+<div class="gp"><div class="r"><span>MitsuTools 1.0（1）<span class="sub">最終確認：今日 9:30</span></span><button class="btn">今すぐ確認</button></div></div>`]};
+function showPane(p){
+  $('stitle').textContent=panes[p][0];$('pane').innerHTML=panes[p][1];
+  document.querySelectorAll('#stabs .tbtn').forEach(x=>x.classList.toggle('on',x.dataset.p===p));
+  document.querySelectorAll('#pane .tog').forEach(t=>t.onclick=()=>t.classList.toggle('off'));
+  document.querySelectorAll('#pane .rec').forEach(r=>r.onclick=()=>{r.classList.add('rec-on');r.innerHTML='キーを押してください…'});
+}
+document.querySelectorAll('#stabs .tbtn').forEach(d=>d.onclick=()=>showPane(d.dataset.p));
+showPane('gen');
+</script>
+</body>
+</html>
