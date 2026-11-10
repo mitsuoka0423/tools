@@ -153,3 +153,36 @@ extension Shortcut {
     static let digitKeyCodes = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5,
                                 kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9]
 }
+
+// MARK: - メニューの右側に出すための形
+
+import SwiftUI
+
+extension Shortcut {
+    /// メニュー項目の右側に表示するための SwiftUI の形。表せないキーなら nil。
+    var menuShortcut: KeyboardShortcut? {
+        let key: KeyEquivalent
+        switch Int(keyCode) {
+        case kVK_LeftArrow: key = .leftArrow
+        case kVK_RightArrow: key = .rightArrow
+        case kVK_UpArrow: key = .upArrow
+        case kVK_DownArrow: key = .downArrow
+        case kVK_Return, kVK_ANSI_KeypadEnter: key = .return
+        case kVK_Space: key = .space
+        case kVK_Tab: key = .tab
+        case kVK_Escape: key = .escape
+        case kVK_Delete: key = .delete
+        default:
+            let name = configString.split(separator: "+").last.map(String.init) ?? ""
+            guard name.count == 1, let character = name.first else { return nil }
+            key = KeyEquivalent(character)
+        }
+        var modifiers: SwiftUI.EventModifiers = []
+        let flags = modifierFlags
+        if flags.contains(.command) { modifiers.insert(.command) }
+        if flags.contains(.option) { modifiers.insert(.option) }
+        if flags.contains(.control) { modifiers.insert(.control) }
+        if flags.contains(.shift) { modifiers.insert(.shift) }
+        return KeyboardShortcut(key, modifiers: modifiers)
+    }
+}

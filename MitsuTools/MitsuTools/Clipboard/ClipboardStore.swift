@@ -57,7 +57,6 @@ struct ClipboardItem: Identifiable {
 @Observable
 final class ClipboardStore {
     private(set) var items: [ClipboardItem] = []
-    var isPaused = false
 
     var maxCount: Int {
         didSet {
@@ -182,7 +181,7 @@ final class ClipboardStore {
         let count = pasteboard.changeCount
         guard count != lastChangeCount else { return }
         lastChangeCount = count
-        guard !isPaused, let item = capture() else { return }
+        guard let item = capture() else { return }
         items.removeAll { $0.fingerprint == item.fingerprint }
         items.insert(item, at: 0)
         trim()

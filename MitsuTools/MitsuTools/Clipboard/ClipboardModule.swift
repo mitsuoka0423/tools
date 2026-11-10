@@ -63,13 +63,9 @@ private struct ClipboardMenuItems: View {
             module.showPanel()
         } label: {
             Label("クリップボード履歴を表示", systemImage: "list.clipboard")
-            if let s = HotKeyCenter.shared.shortcut(for: ClipboardModule.showActionID) {
-                Text(s.displayString)
-            }
         }
-        Toggle(isOn: Binding(get: { module.store.isPaused }, set: { module.store.isPaused = $0 })) {
-            Label("記録を一時停止", systemImage: "pause.circle")
-        }
+        // 設定や終了と同じく、ショートカットをメニューの右側に出す
+        .keyboardShortcut(HotKeyCenter.shared.shortcut(for: ClipboardModule.showActionID)?.menuShortcut)
     }
 }
 
@@ -83,10 +79,14 @@ private struct MaxCountField: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            TextField("件数", text: $text)
+            // 枠付きの入力欄にして、入力できることがわかるようにする。
+            // ラベルは行の左に「保持する件数」と出ているので、入力欄には付けない。
+            TextField(text: $text, prompt: Text(String(ClipboardStore.defaultMaxCount))) { EmptyView() }
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
-                .frame(width: 80)
+                .frame(width: 72)
                 .focused($focused)
                 .onSubmit(commit)
                 .onChange(of: focused) { if !focused { commit() } }

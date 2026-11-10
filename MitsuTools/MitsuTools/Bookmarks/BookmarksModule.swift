@@ -32,8 +32,9 @@ final class BookmarksModule: ToolModule {
                 self.panel.show()
             } label: {
                 Label("ブックマークを検索", systemImage: "bookmark")
-                if let s = HotKeyCenter.shared.shortcut(for: Self.showActionID) { Text(s.displayString) }
             }
+            // 設定や終了と同じく、ショートカットをメニューの右側に出す
+            .keyboardShortcut(HotKeyCenter.shared.shortcut(for: Self.showActionID)?.menuShortcut)
         )
     }
 
