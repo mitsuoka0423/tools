@@ -14,6 +14,7 @@ final class AppModel {
             ClipboardModule(),
             WindowModule(),
             BookmarksModule(),
+            LauncherModule(),
         ]
     }
 
@@ -50,16 +51,36 @@ final class AppModel {
     /// オフの機能のショートカットが押されたら、オンにするかを確認する。
     func startEnabledModules() {
         for module in modules {
-            for action in module.actions {
-                HotKeyCenter.shared.register(ShortcutAction(
-                    id: action.id, title: action.title, defaultShortcut: action.defaultShortcut,
-                    handler: { [weak self, weak module] in
-                        guard let self, let module else { return }
-                        self.perform(action, of: module)
-                    }))
-            }
+            registerActions(of: module)
             if Self.storedEnabled(module.id) { enable(module) }
         }
+    }
+
+    /// モジュールの操作（ショートカット）が増えたり減ったりしたときに呼ぶ。
+    /// アプリ起動のように、利用者が操作を追加できるモジュールで使う。
+    func actionsDidChange(for module: any ToolModule) {
+        let current = Set(module.actions.map(\.id))
+        for id in registeredActionIDs[module.id, default: []] where !current.contains(id) {
+            HotKeyCenter.shared.unregister(actionID: id)
+        }
+        registerActions(of: module)
+        ConfigFile.shared.scheduleSave()
+    }
+
+    /// モジュールごとに登録した操作の ID
+    @ObservationIgnored private var registeredActionIDs: [String: Set<String>] = [:]
+
+    private func registerActions(of module: any ToolModule) {
+        let actions = module.actions
+        for action in actions where !registeredActionIDs[module.id, default: []].contains(action.id) {
+            HotKeyCenter.shared.register(ShortcutAction(
+                id: action.id, title: action.title, defaultShortcut: action.defaultShortcut,
+                handler: { [weak self, weak module] in
+                    guard let self, let module else { return }
+                    self.perform(action, of: module)
+                }))
+        }
+        registeredActionIDs[module.id] = Set(actions.map(\.id))
     }
 
     func isEnabled(_ module: any ToolModule) -> Bool {

@@ -21,6 +21,8 @@ final class ConfigFile {
     @ObservationIgnored private var lastGenerated: String?
     @ObservationIgnored private var lastReadText: String?
     @ObservationIgnored private var isApplying = false
+    /// 設定ファイルにあるが、この Mac には無い操作のショートカット。書き出すときに残す。
+    @ObservationIgnored private var unknownShortcuts: [String: String] = [:]
     @ObservationIgnored private var saveWork: DispatchWorkItem?
     @ObservationIgnored private var watcher: DispatchSourceFileSystemObject?
     @ObservationIgnored private var watchedPath: String?
@@ -108,9 +110,18 @@ final class ConfigFile {
             ("automatically_check", .bool(Updater.shared.automaticallyChecks)),
             ("automatically_download", .bool(Updater.shared.automaticallyDownloads)),
         ])
-        table("shortcuts", model.modules.flatMap(\.actions).map { action in
-            (action.id, .string(HotKeyCenter.shared.storedShortcut(for: action)?.configString ?? ""))
-        })
+        // 初期値も割り当ても無い操作（アプリ起動の未設定のアプリなど）は書かない。
+        // "" は「初期値の割り当てを外した」ことを表すので、初期値がある操作だけに使う。
+        var shortcutEntries: [(key: String, value: TOMLValue)] = model.modules.flatMap(\.actions).compactMap { action in
+            let shortcut = HotKeyCenter.shared.storedShortcut(for: action)
+            guard shortcut != nil || action.defaultShortcut != nil else { return nil }
+            return (action.id, .string(shortcut?.configString ?? ""))
+        }
+        // この Mac に無い操作（ほかの Mac にだけ入っているアプリなど）の割り当ても、消さずに残す
+        let known = Set(shortcutEntries.map(\.key))
+        shortcutEntries += unknownShortcuts.filter { !known.contains($0.key) }.sorted { $0.key < $1.key }
+            .map { ($0.key, .string($0.value)) }
+        table("shortcuts", shortcutEntries)
         return out
     }
 
@@ -159,6 +170,8 @@ final class ConfigFile {
             }
         }
         if let shortcuts = tables["shortcuts"] {
+            let actionIDs = Set(model.modules.flatMap(\.actions).map(\.id))
+            unknownShortcuts = shortcuts.filter { !actionIDs.contains($0.key) }.compactMapValues(\.string)
             for action in model.modules.flatMap(\.actions) {
                 guard let text = shortcuts[action.id]?.string else { continue }
                 if text.isEmpty {
