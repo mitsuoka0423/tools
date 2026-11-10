@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ショートカット設定案</title>
+<style>
+:root{
+  --page:#f2f2f7; --window:#ececec; --group:rgba(0,0,0,.035); --sep:rgba(0,0,0,.09);
+  --label:rgba(0,0,0,.88); --label2:rgba(0,0,0,.5); --label3:rgba(0,0,0,.25);
+  --fill:rgba(0,0,0,.06); --fill2:rgba(0,0,0,.1); --pill:#fff; --accent:#0088ff;
+  --wall:linear-gradient(135deg,#a8c7ff,#f3c1e4);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#000; --window:#262626; --group:rgba(255,255,255,.05); --sep:rgba(255,255,255,.08);
+    --label:rgba(255,255,255,.9); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.25);
+    --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14); --pill:rgba(255,255,255,.1); --accent:#0091ff;
+    --wall:linear-gradient(135deg,#1d3f8a,#6b1f56);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#000; --window:#262626; --group:rgba(255,255,255,.05); --sep:rgba(255,255,255,.08);
+  --label:rgba(255,255,255,.9); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.25);
+  --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14); --pill:rgba(255,255,255,.1); --accent:#0091ff;
+  --wall:linear-gradient(135deg,#1d3f8a,#6b1f56);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--label);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+header{max-width:1180px;margin:auto;padding:24px 16px 4px}
+h1{font-size:22px;margin:0 0 6px}
+.lead{color:var(--label2);margin:0}
+.bar{max-width:1180px;margin:12px auto 0;padding:0 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--fill);gap:2px}
+.seg button{border:0;background:transparent;color:var(--label);font:inherit;padding:5px 14px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--pill);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+main{max-width:1180px;margin:auto;padding:16px;display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+
+/* 設定ウィンドウ */
+.win{border-radius:26px;background:var(--window);box-shadow:0 22px 60px rgba(0,0,0,.3),0 0 0 .5px var(--sep);overflow:hidden}
+.top{display:grid;grid-template-columns:70px 1fr 70px;padding:10px 12px 6px}
+.tls{display:flex;gap:7px;padding-top:4px}.tls i{width:12px;height:12px;border-radius:50%;background:var(--fill2)}.tls i:first-child{background:#ff5f57}
+.ttl{text-align:center;font-weight:600}
+.tabs{display:flex;justify-content:center;gap:4px;margin-top:6px}
+.tabs span{font-size:11px;padding:4px 10px;border-radius:10px;color:var(--label2)}
+.tabs span.on{background:var(--fill2);color:var(--accent)}
+.form{padding:4px 20px 22px}
+.gh{font-size:13px;font-weight:600;margin:18px 4px 8px}
+.gp{background:var(--group);border-radius:12px;padding:0 12px;box-shadow:0 0 0 .5px var(--sep)}
+.r{display:flex;align-items:center;gap:12px;min-height:44px;border-bottom:1px solid var(--sep)}
+.r:last-child{border-bottom:0}
+.r .t{flex:1}
+.rec{display:inline-flex;align-items:center;justify-content:center;min-width:110px;padding:3px 12px;border-radius:999px;background:var(--pill);font-variant-numeric:tabular-nums;cursor:pointer;box-shadow:0 0 0 .5px var(--sep)}
+.rec.none{color:var(--label2)}
+.rec.on{box-shadow:0 0 0 2px var(--accent);color:var(--accent)}
+.x{color:var(--label3);width:14px;text-align:center}
+.slider{display:flex;align-items:center;gap:10px}
+.slider input{width:150px;accent-color:var(--accent)}
+.hint{font-size:11px;color:var(--label2);margin:6px 4px 0}
+
+/* 小さな画面アイコン（案 A） */
+.ico{flex:none;width:34px;height:22px;border-radius:4px;padding:2px;display:grid;gap:1.5px;box-shadow:inset 0 0 0 1px var(--label3)}
+.ico i{border-radius:1.5px;background:var(--fill2)}
+.ico i.hit{background:var(--accent)}
+.ico.side{display:flex}
+.ico.disp{box-shadow:none;padding:0;display:flex;align-items:flex-end;gap:3px;width:38px}
+.ico.disp b{display:block;border-radius:3px;box-shadow:inset 0 0 0 1px var(--label3);height:100%}
+.ico.disp b.hit{background:color-mix(in srgb,var(--accent) 30%,transparent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+
+/* 画面図の中にショートカットを置く（案 B） */
+.map{border-radius:12px;padding:12px;background:var(--group);box-shadow:0 0 0 .5px var(--sep)}
+.screen{position:relative;aspect-ratio:16/9;max-width:400px;margin:0 auto;border-radius:10px;background:var(--wall);padding:6px;display:grid;gap:6px;box-shadow:inset 0 0 0 1px var(--sep)}
+.screen .cell{border-radius:8px;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative}
+.screen .cell .n{font:600 11px -apple-system,sans-serif;color:rgba(255,255,255,.9);position:absolute;left:8px;top:6px}
+.screen .cell .rec{min-width:86px;background:rgba(255,255,255,.85);color:#000;box-shadow:none}
+.screen .cell .rec.none{color:rgba(0,0,0,.45)}
+.screen .cell .rec.on{box-shadow:0 0 0 2px var(--accent);color:var(--accent)}
+.screen .cell.hl{background:color-mix(in srgb,var(--accent) 40%,transparent)}
+.cap{font-size:11px;color:var(--label2);margin:8px 2px 0}
+
+/* 説明 */
+.why{background:var(--window);border-radius:16px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
+.why h3{margin:0 0 8px;font-size:14px}
+.why ul{margin:0;padding-left:18px}.why li{margin:4px 0}
+.why .q{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>ショートカット設定：マスの位置を見てわかるようにする</h1>
+  <p class="lead">設定の「ウィンドウ」ペインの案です。上の切り替えで 2 案を見比べられます。ショートカットの欄をクリックすると「入力中」の見た目になります（モック）。</p>
+</header>
+<div class="bar">
+  <div class="seg" id="plan"><button data-p="a" class="on">案 A：行ごとに小さな図</button><button data-p="b">案 B：画面図にショートカットを置く</button></div>
+  <div class="seg" id="theme"><button data-t="light" class="on">ライト</button><button data-t="dark">ダーク</button></div>
+</div>
+<main>
+  <div class="win">
+    <div class="top"><div class="tls"><i></i><i></i><i></i></div>
+      <div><div class="ttl">ウィンドウ</div><div class="tabs"><span>一般</span><span>クリップボード</span><span class="on">ウィンドウ</span><span>アップデート</span></div></div><div></div></div>
+    <div class="form" id="form"></div>
+  </div>
+  <div class="why" id="why"></div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+// いまの割り当て（スクリーンショットの値）
+const sc={
+  overlay:null, left:'⌥⇧H', right:'⌥⇧L',
+  quad:['⌥⇧U','⌥⇧I','⌥⇧J','⌥⇧K'],
+  six:['⌥⇧W','⌥⇧E','⌥⇧R','⌥⇧S','⌥⇧D','⌥⇧F'],
+  prev:'⌃⌥⌘←', next:'⌃⌥⌘→',
+};
+const rec=k=>`<span class="rec ${k?'':'none'}">${k||'なし'}</span>`;
+const x=k=>`<span class="x">${k?'⊗':''}</span>`;
+const grid=(rows,cols,hit)=>`<span class="ico" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${Array.from({length:rows*cols},(_,i)=>`<i class="${i===hit?'hit':''}"></i>`).join('')}</span>`;
+const side=left=>`<span class="ico side"><i class="${left?'hit':''}" style="flex:1"></i><i class="${left?'':'hit'}" style="flex:1"></i></span>`;
+const disp=next=>`<span class="ico disp"><b class="${next?'':'hit'}" style="flex:1.3"></b><b class="${next?'hit':''}" style="flex:1;height:78%"></b></span>`;
+const overlayIco=`<span class="ico" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr"><i></i><i></i><i></i><i></i></span>`;
+// ギャップ：2 つのウィンドウのあいだを塗る / 余白：画面の端の帯を塗る
+const gapIco=`<span class="ico side" style="gap:0"><i style="flex:1"></i><i class="hit" style="width:3px;border-radius:0"></i><i style="flex:1"></i></span>`;
+const marginIco=`<span class="ico" style="padding:2px"><i class="hit" style="position:relative;border-radius:2.5px;display:block"><i style="position:absolute;inset:3px;display:block;background:var(--window)"></i><i style="position:absolute;inset:3px;display:block"></i></i></span>`;
+const row=(ico,t,k)=>`<div class="r">${ico}<span class="t">${t}</span>${rec(k)}${x(k)}</div>`;
+const sliders=`<div class="gp">
+  <div class="r">${gapIco}<span class="t">ウィンドウ間のギャップ</span><span class="slider"><input type="range" min="0" max="40" value="12"> 12 pt</span></div>
+  <div class="r">${marginIco}<span class="t">画面端の余白</span><span class="slider"><input type="range" min="0" max="40" value="12"> 12 pt</span></div></div>`;
+
+function planA(){
+  return sliders+
+  `<div class="gh">ショートカット</div><div class="gp">
+    ${row(overlayIco,'マスを選んで配置',sc.overlay)}
+    ${row(side(true),'左へ（1/2 → 1/3 → 2/3）',sc.left)}
+    ${row(side(false),'右へ（1/2 → 1/3 → 2/3）',sc.right)}</div>
+  <div class="gh">2×2 のマス</div><div class="gp">${sc.quad.map((k,i)=>row(grid(2,2,i),['左上','右上','左下','右下'][i],k)).join('')}</div>
+  <div class="gh">2×3 のマス</div><div class="gp">${sc.six.map((k,i)=>row(grid(2,3,i),['左上','中央上','右上','左下','中央下','右下'][i],k)).join('')}</div>
+  <div class="gh">ディスプレイ</div><div class="gp">${row(disp(false),'前のディスプレイへ',sc.prev)}${row(disp(true),'次のディスプレイへ',sc.next)}</div>`;
+}
+function screen(rows,cols,keys,labels){
+  return `<div class="screen" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${keys.map((k,i)=>`<div class="cell"><span class="n">${labels?labels[i]:i+1}</span>${rec(k)}</div>`).join('')}</div>`;
+}
+function planB(){
+  return sliders+
+  `<div class="gh">2×2 のマス</div><div class="map">${screen(2,2,sc.quad)}<p class="cap">マスの中の欄をクリックして、ショートカットを押してください。</p></div>
+  <div class="gh">2×3 のマス</div><div class="map">${screen(2,3,sc.six)}</div>
+  <div class="gh">左右（続けて押すと 1/2 → 1/3 → 2/3）</div><div class="map">${screen(1,2,[sc.left,sc.right],['左','右'])}</div>
+  <div class="gh">そのほか</div><div class="gp">
+    ${row(overlayIco,'マスを選んで配置',sc.overlay)}
+    ${row(disp(false),'前のディスプレイへ',sc.prev)}
+    ${row(disp(true),'次のディスプレイへ',sc.next)}</div>`;
+}
+const why={
+a:`<h3>案 A：行ごとに小さな図</h3><ul>
+<li>各行の先頭に、画面を表す小さな図を置き、そのマスだけ<b>アクセントカラー</b>で塗る。HUD に出しているのと同じ図にそろえる。</li>
+<li>名前も「マス 1」ではなく<b>「左上」「中央下」</b>のような位置の言葉にする。図と文字の両方で伝わる。</li>
+<li>今の一覧の形のままなので、作りの変更が小さい。ほかのペインとも見た目がそろう。</li>
+<li>左右の行は半分ずつの図、ディスプレイの行は 2 つの画面の図にする。</li>
+<li>ギャップの行は 2 つのウィンドウのあいだを、余白の行は画面の端の帯を塗る。</li>
+</ul>`,
+b:`<h3>案 B：画面図にショートカットを置く</h3><ul>
+<li>2×2・2×3・左右のそれぞれを<b>画面の図</b>で描き、マスの中にショートカットの欄を置く。どのマスがどこかが一目でわかる。</li>
+<li>欄をクリックしてキーを押すと登録。今と同じ操作で変えられる。</li>
+<li>2×3 のマスは小さくなるので、欄の幅は少し詰める。ウィンドウはやや縦に長くなる。</li>
+<li>「マスを選んで配置」とディスプレイ移動は、マスと関係しないので一覧に残す。</li>
+</ul>`};
+function render(p){
+  $('form').innerHTML=p==='a'?planA():planB();
+  $('why').innerHTML=why[p]+`<p style="margin:12px 0 0"><span class="q">共通：</span>どちらの案も、行や欄にマウスを乗せている間は、図の該当マスを強調する予定です。</p>`;
+  document.querySelectorAll('#form .rec').forEach(r=>r.onclick=()=>{
+    document.querySelectorAll('#form .rec.on').forEach(o=>{o.classList.remove('on');o.textContent=o.dataset.k||'なし'});
+    r.dataset.k=r.textContent==='なし'?'':r.textContent; r.classList.add('on'); r.textContent='キーを押してください…';
+  });
+  document.querySelectorAll('#form .screen .cell').forEach(c=>{c.onmouseenter=()=>c.classList.add('hl');c.onmouseleave=()=>c.classList.remove('hl')});
+}
+document.querySelectorAll('#plan button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#plan button').forEach(x=>x.classList.toggle('on',x===b));render(b.dataset.p)});
+document.querySelectorAll('#theme button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#theme button').forEach(x=>x.classList.toggle('on',x===b));document.documentElement.dataset.theme=b.dataset.t});
+document.documentElement.dataset.theme='light';
+render('a');
+</script>
+</body>
+</html>

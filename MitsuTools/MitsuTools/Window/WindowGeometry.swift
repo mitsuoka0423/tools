@@ -11,6 +11,15 @@ nonisolated enum GridLayout: String, CaseIterable, Codable, Sendable {
     var cellCount: Int { rows * columns }
     var label: String { "\(rows)×\(columns)" }
 
+    /// マスの位置を表す言葉。例: 「左上」「中央下」
+    func positionName(_ index: Int) -> String {
+        switch self {
+        case .halves: return index == 0 ? "左" : "右"
+        case .quad: return ["左上", "右上", "左下", "右下"][index]
+        case .six: return ["左上", "中央上", "右上", "左下", "中央下", "右下"][index]
+        }
+    }
+
     var next: GridLayout {
         let all = GridLayout.allCases
         return all[(all.firstIndex(of: self)! + 1) % all.count]
@@ -29,7 +38,7 @@ nonisolated enum Placement: Equatable, Sendable {
 
     var hudText: String {
         switch self {
-        case let .cell(layout, index): "\(layout.label) のマス \(index + 1)"
+        case let .cell(layout, index): "\(layout.label) の\(layout.positionName(index))"
         case let .side(left, step): "\(left ? "左" : "右") \(Placement.sideLabels[step])"
         }
     }
