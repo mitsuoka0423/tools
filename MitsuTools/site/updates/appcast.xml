@@ -3,12 +3,12 @@
     <channel>
         <title>MitsuTools</title>
         <item>
-            <title>1.1</title>
-            <pubDate>Tue, 10 Nov 2026 05:32:40 +0000</pubDate>
-            <sparkle:version>5</sparkle:version>
-            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <title>1.2</title>
+            <pubDate>Tue, 10 Nov 2026 05:52:23 +0000</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://mitsutools.spleeing.com/downloads/MitsuTools-1.1.zip" length="2991644" type="application/octet-stream" sparkle:edSignature="fbrJ7m6wIIJIvihS/mIeu+p85K9791YWqRINjpMAFPlwTyMIVA/xBomKAN1UauwXGI98AwJl40Ade3yBdh0CDQ=="/>
+            <enclosure url="https://mitsutools.spleeing.com/downloads/MitsuTools-1.2.zip" length="2992589" type="application/octet-stream" sparkle:edSignature="hQPA/3kOO15Z3Ymr1+1i3K6Tu9ijpWI1WhaRrRr8Vx823qIPO6vxJ/zmunq9M/botnzaKfVL4qJ0UPXlzc51Cw=="/>
         </item>
     </channel>
 </rss>
