@@ -16,8 +16,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func show(pane: String? = nil) {
         if window == nil { build() }
         if let pane { select(pane) }
+        // メニューバーから開くと、メニューが閉じきる前に前面へ出そうとして負けることがあるので、一拍おく
+        DispatchQueue.main.async { [weak self] in self?.bringToFront() }
+    }
+
+    /// Dock に出ないアプリは、ほかのアプリが前にいると activate だけでは前面に出られないことがある。
+    /// アプリを前面に出したうえで、ウィンドウもほかのアプリより前に並べる。
+    private func bringToFront() {
+        guard let window else { return }
         NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
+        NSRunningApplication.current.activate(options: [.activateAllWindows])
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
     private func build() {
