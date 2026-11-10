@@ -1,0 +1,141 @@
+name: MitsuTools Release
+
+# mitsutools-v タグ（例: mitsutools-v1.1）を push すると、Developer ID 署名 → 公証 → Sparkle 署名
+# → appcast 更新 → Cloudflare Pages へデプロイ → GitHub Release 作成 までを行う。
+# 証明書と鍵はすべて Secrets から一時キーチェーン・一時ファイルに読み込み、最後に消す。
+# 必要な Secrets と手順は MitsuTools/docs/RELEASE.md。
+
+on:
+  push:
+    tags: ["mitsutools-v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mitsutools-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: MitsuTools
+
+jobs:
+  # 手元の scripts/release.sh で出したときもタグが push されるので、そのときは何もしない
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+    steps:
+      - id: release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.released != 'true'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      # アプリが組み込んでいる Sparkle と同じ版の generate_appcast を使う
+      SPARKLE_VERSION: "2.10.1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ビルド番号はコミット数から採番するので、履歴をすべて取る
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Check the tag matches MARKETING_VERSION
+        run: |
+          VERSION="$(grep -m1 -E 'MARKETING_VERSION = [0-9]' MitsuTools.xcodeproj/project.pbxproj \
+            | sed -E 's/.*MARKETING_VERSION = ([0-9.]+);.*/\1/')"
+          [ "mitsutools-v$VERSION" = "$GITHUB_REF_NAME" ] \
+            || { echo "タグ $GITHUB_REF_NAME と MARKETING_VERSION $VERSION が一致しません" >&2; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Import the Developer ID certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          printf '%s' "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Build, sign and notarize
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          export NOTARY_KEY_PATH="$RUNNER_TEMP/notary.p8"
+          printf '%s\n' "$NOTARY_KEY_P8" > "$NOTARY_KEY_PATH"
+          ./scripts/build-notarized.sh
+
+      - name: Get generate_appcast
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          echo "SPARKLE_BIN=$RUNNER_TEMP/sparkle/bin/generate_appcast" >> "$GITHUB_ENV"
+
+      - name: Sign the update and write the appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.MITSUTOOLS_SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          export SPARKLE_KEY_FILE="$RUNNER_TEMP/sparkle_ed.key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$SPARKLE_KEY_FILE"
+          SKIP_BUILD=1 SKIP_DEPLOY=1 ./scripts/release.sh
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@3 pages deploy site --project-name=mitsutools --branch=main
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/updates/MitsuTools-$VERSION.zip" \
+            --title "MitsuTools $VERSION" --generate-notes
+
+      - name: Commit the appcast to main
+        run: |
+          cp site/updates/appcast.xml "$RUNNER_TEMP/appcast.xml"
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p site/updates
+          cp "$RUNNER_TEMP/appcast.xml" site/updates/appcast.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/updates/appcast.xml
+          git commit -m "chore(mitsutools): release $VERSION appcast"
+          git push origin main
+
+      - name: Remove the keychain and keys
+        if: always()
+        run: |
+          [ -n "${KEYCHAIN:-}" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/sparkle_ed.key" "$RUNNER_TEMP/cert.p12"

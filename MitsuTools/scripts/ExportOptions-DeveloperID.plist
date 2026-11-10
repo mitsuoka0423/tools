@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Developer ID 直接配布用の書き出し設定（公証前の .app を書き出す）。
+         scripts/build-notarized.sh から使う。 -->
+    <key>method</key>
+    <string>developer-id</string>
+    <key>teamID</key>
+    <string>L89Y496GWR</string>
+    <!-- 書き出すだけ。公証は書き出したあと notarytool で行う。 -->
+    <key>destination</key>
+    <string>export</string>
+    <!-- CI には Apple ID のログインがないため、証明書を名前で指定する（手動署名） -->
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>signingCertificate</key>
+    <string>Developer ID Application</string>
+</dict>
+</plist>

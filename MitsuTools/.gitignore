@@ -2,3 +2,7 @@ build/
 xcuserdata/
 *.xcuserstate
 .DS_Store
+
+# リリースの成果物
+dist/
+site/downloads/
