@@ -21,14 +21,22 @@ struct GeneralSettingsView: View {
                         Label("許可済み", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     } else {
-                        Button("許可する…") {
-                            permission.request()
-                            permission.openSystemSettings()
-                        }
+                        // macOS の確認ダイアログを出す。ダイアログから「システム設定を開く」へ進める。
+                        Button("許可する…") { permission.request() }
                     }
                 } label: {
                     Text("アクセシビリティ")
                     Text("ウィンドウの移動と、選んだ履歴の自動貼り付けに必要です。")
+                }
+                if !permission.isTrusted {
+                    // 確認ダイアログは、一度出したアプリには出ないことがある。そのときの入口。
+                    LabeledContent {
+                        Button("システム設定を開く") { permission.openSystemSettings() }
+                            .buttonStyle(.link)
+                    } label: {
+                        Text("ダイアログが出ないとき")
+                        Text("一覧で MitsuTools がオンなのに許可されない場合は、「−」で消してから許可し直してください。")
+                    }
                 }
             }
 
@@ -79,7 +87,9 @@ struct UpdateSettingsView: View {
                         .disabled(!updater.canCheckForUpdates)
                 } label: {
                     Text("MitsuTools \(Bundle.main.shortVersion)（\(Bundle.main.buildNumber)）")
-                    if let date = updater.lastCheckDate {
+                    if !Updater.isEnabled {
+                        Text("開発用ビルドでは、アップデートを確認しません。")
+                    } else if let date = updater.lastCheckDate {
                         Text("最終確認：\(date.formatted(date: .abbreviated, time: .shortened))")
                     }
                 }
