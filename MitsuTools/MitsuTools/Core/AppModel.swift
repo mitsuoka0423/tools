@@ -13,6 +13,7 @@ final class AppModel {
         [
             ClipboardModule(),
             WindowModule(),
+            BookmarksModule(),
         ]
     }
 
