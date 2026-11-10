@@ -9,19 +9,28 @@
   :root { color-scheme: light dark; }
   body { font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; max-width: 640px; margin: 48px auto; padding: 0 16px; }
   a.button { display: inline-block; padding: 8px 18px; border-radius: 999px; background: #0088ff; color: #fff; text-decoration: none; }
-  ol li { margin: 4px 0; }
+  ol li, ul li { margin: 4px 0; }
 </style>
 </head>
 <body>
 <h1>MitsuTools</h1>
-<p>クリップボード履歴とウィンドウ配置のメニューバーアプリ（macOS 26 以降）。</p>
+<p>クリップボード履歴・ウィンドウ配置・ブックマーク検索のメニューバーアプリ（macOS 26 以降）。</p>
 <p><a class="button" href="downloads/MitsuTools.zip">最新版をダウンロード</a></p>
+
 <h2>インストール</h2>
 <ol>
   <li>zip を開き、MitsuTools.app を「アプリケーション」フォルダへ移す。</li>
   <li>MitsuTools を開く。メニューバーにアイコンが出る。</li>
-  <li>「システム設定 › プライバシーとセキュリティ › アクセシビリティ」で MitsuTools をオンにする。</li>
+  <li>メニューの「設定…」を開き、「一般」で使う機能をオンにする。機能は、はじめはすべてオフです。</li>
 </ol>
+<p>オフの機能のショートカットを押したときも、その機能をオンにするかを聞かれます。</p>
+
+<h2>機能ごとに必要な準備</h2>
+<ul>
+  <li><b>クリップボード・ウィンドウ</b>：「システム設定 › プライバシーとセキュリティ › アクセシビリティ」で MitsuTools をオンにする。ウィンドウを動かすのと、選んだ履歴を貼り付けるのに使います。</li>
+  <li><b>ブックマーク</b>：設定の「ブックマーク」で読み込むブラウザをオンにし、「フォルダを選んで許可…」でそのブラウザのデータフォルダを選ぶ。許可するのは選んだフォルダだけです。</li>
+</ul>
+
 <p>以後のアップデートは、アプリが自動で確認します。</p>
 </body>
 </html>
