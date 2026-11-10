@@ -61,31 +61,59 @@ final class WindowModule: ToolModule {
 struct WindowSettingsView: View {
     @Bindable var manager: WindowManager
 
+    /// ショートカットはグループごとに切り替えて出す（全部並べると縦に長くなるため）
+    private enum Group: String, CaseIterable, Identifiable {
+        case basic, quad, six, display
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .basic: "配置"
+            case .quad: "2×2"
+            case .six: "2×3"
+            case .display: "ディスプレイ"
+            }
+        }
+    }
+
+    /// 最後に見たグループを次も出す
+    @AppStorage("settings.window.group") private var group: Group = .basic
+
     var body: some View {
         Form {
             Section {
                 IconRow(icon: .gap, title: "ウィンドウ間のギャップ") { slider($manager.gap) }
                 IconRow(icon: .margin, title: "画面端の余白") { slider($manager.margin) }
             }
-            Section("ショートカット") {
-                row(.overlay, "マスを選んで配置", "window.overlay")
-                row(.cell(.full, 0), "画面全体に広げる", "window.full")
-                row(.side(left: true), "左へ（1/2 → 1/3 → 2/3）", "window.left")
-                row(.side(left: false), "右へ（1/2 → 1/3 → 2/3）", "window.right")
-            }
-            Section("2×2 のマス") {
-                ForEach(0..<GridLayout.quad.cellCount, id: \.self) { i in
-                    row(.cell(.quad, i), GridLayout.quad.positionName(i), "window.quad.\(i + 1)")
+            Section {
+                switch group {
+                case .basic:
+                    row(.overlay, "マスを選んで配置", "window.overlay")
+                    row(.cell(.full, 0), "画面全体に広げる", "window.full")
+                    row(.side(left: true), "左へ（1/2 → 1/3 → 2/3）", "window.left")
+                    row(.side(left: false), "右へ（1/2 → 1/3 → 2/3）", "window.right")
+                case .quad:
+                    ForEach(0..<GridLayout.quad.cellCount, id: \.self) { i in
+                        row(.cell(.quad, i), GridLayout.quad.positionName(i), "window.quad.\(i + 1)")
+                    }
+                case .six:
+                    ForEach(0..<GridLayout.six.cellCount, id: \.self) { i in
+                        row(.cell(.six, i), GridLayout.six.positionName(i), "window.six.\(i + 1)")
+                    }
+                case .display:
+                    row(.display(next: false), "前のディスプレイへ", "window.display.prev")
+                    row(.display(next: true), "次のディスプレイへ", "window.display.next")
                 }
-            }
-            Section("2×3 のマス") {
-                ForEach(0..<GridLayout.six.cellCount, id: \.self) { i in
-                    row(.cell(.six, i), GridLayout.six.positionName(i), "window.six.\(i + 1)")
+            } header: {
+                HStack {
+                    Text("ショートカット")
+                    Spacer()
+                    Picker("ショートカットのグループ", selection: $group) {
+                        ForEach(Group.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-            }
-            Section("ディスプレイ") {
-                row(.display(next: false), "前のディスプレイへ", "window.display.prev")
-                row(.display(next: true), "次のディスプレイへ", "window.display.next")
             }
         }
         .formStyle(.grouped)
