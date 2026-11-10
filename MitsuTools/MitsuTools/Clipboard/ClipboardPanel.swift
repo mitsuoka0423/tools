@@ -85,6 +85,7 @@ final class ClipboardPanelController {
     private func makePanel() -> FloatingPanel {
         let panel = FloatingPanel(contentRect: CGRect(origin: .zero, size: Self.size))
         panel.onResignKey = { [weak self] in self?.close() }
+        panel.onCancel = { [weak self] in self?.close() }
         panel.setRootView(
             ClipboardPanelView(model: model,
                                onChoose: { [weak self] item, plain in self?.choose(item, plainTextOnly: plain) },

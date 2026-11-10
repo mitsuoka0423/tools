@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Carbon.HIToolbox
 
 /// タイトルバーのない、ほかのアプリをアクティブにしたままキー入力を受け取れるパネル。
 /// クリップボード履歴・マス選択オーバーレイ・HUD で使う。
@@ -7,6 +8,9 @@ final class FloatingPanel: NSPanel {
     var acceptsKey = true
     /// フォーカスを失ったときに呼ばれる（閉じる処理などに使う）。
     var onResignKey: (() -> Void)?
+    /// esc を押したときに呼ばれる。
+    /// テキスト入力欄は esc を自分で使ってしまい SwiftUI まで届かないので、パネルの段階で拾う。
+    var onCancel: (() -> Void)?
 
     init(contentRect: NSRect, acceptsKey: Bool = true) {
         super.init(contentRect: contentRect,
@@ -27,6 +31,16 @@ final class FloatingPanel: NSPanel {
 
     override var canBecomeKey: Bool { acceptsKey }
     override var canBecomeMain: Bool { false }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, event.keyCode == UInt16(kVK_Escape),
+           event.modifierFlags.intersection(Shortcut.relevantModifiers).isEmpty,
+           let onCancel {
+            onCancel()
+            return
+        }
+        super.sendEvent(event)
+    }
 
     override func resignKey() {
         super.resignKey()

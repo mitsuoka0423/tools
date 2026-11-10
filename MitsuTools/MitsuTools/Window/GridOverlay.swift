@@ -42,6 +42,7 @@ final class GridOverlayController {
         let panel = FloatingPanel(contentRect: .zero)
         panel.level = .statusBar
         panel.onResignKey = { [weak self] in self?.close() }
+        panel.onCancel = { [weak self] in self?.close() }
         panel.setRootView(GridOverlayView(state: state,
                                           onPick: { [weak self] in self?.pick($0) },
                                           onNextLayout: { [weak self] in self?.nextLayout() },
