@@ -2,27 +2,35 @@ import AppKit
 
 /// マスの区切り方。
 nonisolated enum GridLayout: String, CaseIterable, Codable, Sendable {
+    /// 画面全体（余白の内側いっぱい）
+    case full = "1x1"
     case halves = "1x2"
     case quad = "2x2"
     case six = "2x3"
 
-    var rows: Int { self == .halves ? 1 : 2 }
-    var columns: Int { switch self { case .halves: 2; case .quad: 2; case .six: 3 } }
+    var rows: Int { self == .quad || self == .six ? 2 : 1 }
+    var columns: Int { switch self { case .full: 1; case .halves: 2; case .quad: 2; case .six: 3 } }
     var cellCount: Int { rows * columns }
     var label: String { "\(rows)×\(columns)" }
 
     /// マスの位置を表す言葉。例: 「左上」「中央下」
     func positionName(_ index: Int) -> String {
         switch self {
+        case .full: return "全体"
         case .halves: return index == 0 ? "左" : "右"
         case .quad: return ["左上", "右上", "左下", "右下"][index]
         case .six: return ["左上", "中央上", "右上", "左下", "中央下", "右下"][index]
         }
     }
 
+    /// マス選択のオーバーレイで tab を押したときの次のレイアウト。
+    /// 1×1 はマスが 1 つしかなく選ぶ必要がないので、オーバーレイには出さない。
+    static let overlayLayouts: [GridLayout] = [.halves, .quad, .six]
+
     var next: GridLayout {
-        let all = GridLayout.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
+        let all = GridLayout.overlayLayouts
+        guard let index = all.firstIndex(of: self) else { return .quad }
+        return all[(index + 1) % all.count]
     }
 }
 
@@ -38,6 +46,7 @@ nonisolated enum Placement: Equatable, Sendable {
 
     var hudText: String {
         switch self {
+        case .cell(.full, _): "画面全体"
         case let .cell(layout, index): "\(layout.label) の\(layout.positionName(index))"
         case let .side(left, step): "\(left ? "左" : "右") \(Placement.sideLabels[step])"
         }

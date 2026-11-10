@@ -16,6 +16,8 @@ final class WindowModule: ToolModule {
         var list: [ShortcutAction] = [
             ShortcutAction(id: "window.overlay", title: "マスを選んで配置", defaultShortcut: .ctrlOpt(kVK_ANSI_G),
                            handler: { [weak self] in self?.overlay.toggle() }),
+            ShortcutAction(id: "window.full", title: "画面全体に広げる", defaultShortcut: .ctrlOpt(kVK_Return),
+                           handler: { [weak self] in self?.manager.snapToCell(.full, 0) }),
             ShortcutAction(id: "window.left", title: "左へ（1/2 → 1/3 → 2/3）", defaultShortcut: .ctrlOpt(kVK_LeftArrow),
                            handler: { [weak self] in self?.manager.snapToSide(left: true) }),
             ShortcutAction(id: "window.right", title: "右へ（1/2 → 1/3 → 2/3）", defaultShortcut: .ctrlOpt(kVK_RightArrow),
@@ -67,6 +69,7 @@ struct WindowSettingsView: View {
             }
             Section("ショートカット") {
                 row(.overlay, "マスを選んで配置", "window.overlay")
+                row(.cell(.full, 0), "画面全体に広げる", "window.full")
                 row(.side(left: true), "左へ（1/2 → 1/3 → 2/3）", "window.left")
                 row(.side(left: false), "右へ（1/2 → 1/3 → 2/3）", "window.right")
             }
