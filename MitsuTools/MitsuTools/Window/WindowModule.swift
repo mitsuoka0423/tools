@@ -18,6 +18,10 @@ final class WindowModule: ToolModule {
                            handler: { [weak self] in self?.overlay.toggle() }),
             ShortcutAction(id: "window.full", title: "画面全体に広げる", defaultShortcut: .ctrlOpt(kVK_Return),
                            handler: { [weak self] in self?.manager.snapToCell(.full, 0) }),
+            ShortcutAction(id: "window.top", title: "上半分へ", defaultShortcut: .ctrlOpt(kVK_UpArrow),
+                           handler: { [weak self] in self?.manager.snapToCell(.stacked, 0) }),
+            ShortcutAction(id: "window.bottom", title: "下半分へ", defaultShortcut: .ctrlOpt(kVK_DownArrow),
+                           handler: { [weak self] in self?.manager.snapToCell(.stacked, 1) }),
             ShortcutAction(id: "window.left", title: "左へ（1/2 → 1/3 → 2/3）", defaultShortcut: .ctrlOpt(kVK_LeftArrow),
                            handler: { [weak self] in self?.manager.snapToSide(left: true) }),
             ShortcutAction(id: "window.right", title: "右へ（1/2 → 1/3 → 2/3）", defaultShortcut: .ctrlOpt(kVK_RightArrow),
@@ -89,6 +93,8 @@ struct WindowSettingsView: View {
                 case .basic:
                     row(.overlay, "マスを選んで配置", "window.overlay")
                     row(.cell(.full, 0), "画面全体に広げる", "window.full")
+                    row(.cell(.stacked, 0), "上半分へ", "window.top")
+                    row(.cell(.stacked, 1), "下半分へ", "window.bottom")
                     row(.side(left: true), "左へ（1/2 → 1/3 → 2/3）", "window.left")
                     row(.side(left: false), "右へ（1/2 → 1/3 → 2/3）", "window.right")
                 case .quad:

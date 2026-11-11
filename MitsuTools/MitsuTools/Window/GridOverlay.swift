@@ -119,6 +119,8 @@ private struct GridOverlayView: View {
         .onKeyPress(.tab) { onNextLayout(); return .handled }
         .onKeyPress(.leftArrow) { state.layout == .halves ? (onPick(0), KeyPress.Result.handled).1 : .ignored }
         .onKeyPress(.rightArrow) { state.layout == .halves ? (onPick(1), KeyPress.Result.handled).1 : .ignored }
+        .onKeyPress(.upArrow) { state.layout == .stacked ? (onPick(0), KeyPress.Result.handled).1 : .ignored }
+        .onKeyPress(.downArrow) { state.layout == .stacked ? (onPick(1), KeyPress.Result.handled).1 : .ignored }
         .onKeyPress(characters: .decimalDigits) { press in
             guard let n = Int(press.characters), n >= 1 else { return .ignored }
             onPick(n - 1)
@@ -144,13 +146,25 @@ private struct GridOverlayView: View {
     }
 
     private func label(_ index: Int) -> String {
-        state.layout == .halves ? (index == 0 ? "←" : "→") : "\(index + 1)"
+        switch state.layout {
+        case .halves: index == 0 ? "←" : "→"
+        case .stacked: index == 0 ? "↑" : "↓"
+        default: "\(index + 1)"
+        }
+    }
+
+    private var hintForKeys: String {
+        switch state.layout {
+        case .halves: "← → で選ぶ"
+        case .stacked: "↑ ↓ で選ぶ"
+        default: "番号キーで選ぶ"
+        }
     }
 
     private var hint: some View {
         HStack(spacing: 14) {
             Text(state.layout.label).fontWeight(.semibold)
-            Text(state.layout == .halves ? "← → で選ぶ" : "番号キーで選ぶ")
+            Text(hintForKeys)
             Text("tab で切り替え")
             Text("esc で取り消し")
         }
