@@ -24,6 +24,9 @@ protocol ToolModule: AnyObject {
     /// モジュールを無効にしたときに呼ばれる。監視などを止める。
     func stop()
 
+    /// 機能がオフでも、メニューに項目を出すか。出した項目を押すと、オンにするかを確認する。
+    /// 手軽にオンオフしたい機能（スリープ防止など）で使う。
+    var showsMenuItemsWhenDisabled: Bool { get }
     /// メニューバーのメニューに差し込む項目。不要なら `EmptyView` を返す。
     func menuItems() -> AnyView
     /// 設定ウィンドウのペイン。
@@ -37,6 +40,7 @@ protocol ToolModule: AnyObject {
 
 extension ToolModule {
     var needsAccessibility: Bool { false }
+    var showsMenuItemsWhenDisabled: Bool { false }
     func menuItems() -> AnyView { AnyView(EmptyView()) }
     func exportConfig() -> [(key: String, value: TOMLValue)] { [] }
     func importConfig(_ table: TOMLTable) {}

@@ -9,6 +9,7 @@ struct MitsuToolsApp: App {
         MenuBarExtra(isInserted: $model.showsMenuBarIcon) {
             MenuContent()
         } label: {
+            // 機能（モジュール）が増えても変わらない、固定のアイコン。
             // テンプレート画像として扱われ、メニューバーの明暗に合わせて色が付く。
             Image(systemName: "square.grid.2x2")
         }
@@ -39,7 +40,7 @@ struct MenuContent: View {
 
     var body: some View {
         ForEach(model.modules, id: \.id) { module in
-            if model.isEnabled(module) {
+            if model.isEnabled(module) || module.showsMenuItemsWhenDisabled {
                 module.menuItems()
             }
         }

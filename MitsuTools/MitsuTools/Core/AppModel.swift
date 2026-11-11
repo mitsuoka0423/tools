@@ -15,6 +15,7 @@ final class AppModel {
             WindowModule(),
             BookmarksModule(),
             LauncherModule(),
+            KeepAwakeModule(),
         ]
     }
 
@@ -97,7 +98,9 @@ final class AppModel {
         modules.contains { enabledIDs.contains($0.id) && $0.needsAccessibility }
     }
 
-    private func perform(_ action: ShortcutAction, of module: any ToolModule) {
+    /// モジュールの操作を実行する。機能がオフなら、オンにするかを確認してから実行する。
+    /// ショートカットでもメニューでも、これを通す。
+    func perform(_ action: ShortcutAction, of module: any ToolModule) {
         if isEnabled(module) {
             action.handler()
             return
