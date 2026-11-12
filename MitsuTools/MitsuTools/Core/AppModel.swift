@@ -16,6 +16,7 @@ final class AppModel {
             BookmarksModule(),
             LauncherModule(),
             KeepAwakeModule(),
+            InputSourceModule(),
         ]
     }
 
