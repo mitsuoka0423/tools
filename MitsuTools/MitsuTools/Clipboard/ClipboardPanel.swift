@@ -24,7 +24,18 @@ final class ClipboardPanelModel {
 
     init(store: ClipboardStore) { self.store = store }
 
+    /// 絞り込み結果の使い回し。履歴・検索語・種類が変わらない間は、計算し直さない。
+    @ObservationIgnored private var cache: (revision: Int, query: String, filter: Filter, items: [ClipboardItem])?
+
     var visibleItems: [ClipboardItem] {
+        let revision = store.revision
+        if let cache, cache.revision == revision, cache.query == query, cache.filter == filter { return cache.items }
+        let result = computeVisibleItems()
+        cache = (revision, query, filter, result)
+        return result
+    }
+
+    private func computeVisibleItems() -> [ClipboardItem] {
         store.items.filter { item in
             let kindOK: Bool = switch filter {
             case .all: true

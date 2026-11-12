@@ -2,6 +2,9 @@ import AppKit
 import Observation
 
 /// クリップボード履歴の 1 件。メモリ上だけに持つ。
+///
+/// 一覧の表示・検索・重複の確認で何度も使う値（title・searchText・fingerprint）は、
+/// 作るときに一度だけ計算して持っておく。長いテキストでも、一覧や検索が重くならないようにするため。
 struct ClipboardItem: Identifiable {
     enum Kind: String, CaseIterable { case text, image, file }
 
@@ -15,40 +18,57 @@ struct ClipboardItem: Identifiable {
     let fileURLs: [URL]
     let image: NSImage?
 
-    /// 一覧に出す 1 行の文字列。
-    var title: String {
+    /// 一覧に出す 1 行の文字列
+    let title: String
+    /// 検索に使う文字列。長いテキストは先頭だけ。
+    let searchText: String
+    /// 同じ内容かを調べる印。内容全体ではなく、長さとハッシュで比べる。
+    let fingerprint: String
+
+    /// 検索の対象にする文字数の上限（これより後ろの文字は、検索に出ない）
+    static let searchCharacterLimit = 10_000
+
+    init(kind: Kind, date: Date, appName: String?,
+         representations: [(type: NSPasteboard.PasteboardType, data: Data)],
+         plainText: String?, fileURLs: [URL], image: NSImage?) {
+        self.kind = kind
+        self.date = date
+        self.appName = appName
+        self.representations = representations
+        self.plainText = plainText
+        self.fileURLs = fileURLs
+        self.image = image
+
         switch kind {
         case .text:
-            let line = (plainText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = plainText ?? ""
+            // 先頭の一部だけを見て 1 行にする（全文を処理しない）
+            let head = text.prefix(2000).trimmingCharacters(in: .whitespacesAndNewlines)
                 .replacingOccurrences(of: "\n", with: " ")
-            return line.isEmpty ? "（空白）" : String(line.prefix(200))
+            title = head.isEmpty ? "（空白）" : String(head.prefix(200))
+            searchText = String(text.prefix(Self.searchCharacterLimit))
+            fingerprint = "t:" + Self.digest(text)
         case .file:
-            return fileURLs.map(\.lastPathComponent).joined(separator: ", ")
+            title = fileURLs.map(\.lastPathComponent).joined(separator: ", ")
+            searchText = fileURLs.map(\.path).joined(separator: " ")
+            fingerprint = "f:" + fileURLs.map(\.path).joined(separator: "|")
         case .image:
             if let image {
                 let rep = image.representations.first
                 let w = rep?.pixelsWide ?? Int(image.size.width), h = rep?.pixelsHigh ?? Int(image.size.height)
-                return "画像 \(w)×\(h)"
+                title = "画像 \(w)×\(h)"
+            } else {
+                title = "画像"
             }
-            return "画像"
+            searchText = title
+            fingerprint = "i:\(representations.first?.data.hashValue ?? 0)"
         }
     }
 
-    var searchText: String {
-        switch kind {
-        case .text: plainText ?? ""
-        case .file: fileURLs.map(\.path).joined(separator: " ")
-        case .image: title
-        }
-    }
-
-    /// 重複判定用。
-    var fingerprint: String {
-        switch kind {
-        case .text: "t:" + (plainText ?? "")
-        case .file: "f:" + fileURLs.map(\.path).joined(separator: "|")
-        case .image: "i:\(representations.first?.data.hashValue ?? 0)"
-        }
+    private static func digest(_ text: String) -> String {
+        var hasher = Hasher()
+        hasher.combine(text)
+        return "\(text.utf8.count):\(hasher.finalize())"
     }
 }
 
@@ -56,7 +76,11 @@ struct ClipboardItem: Identifiable {
 @MainActor
 @Observable
 final class ClipboardStore {
-    private(set) var items: [ClipboardItem] = []
+    private(set) var items: [ClipboardItem] = [] {
+        didSet { revision += 1 }
+    }
+    /// 履歴が変わるたびに増やす。一覧の絞り込み結果を使い回してよいかの判断に使う。
+    private(set) var revision = 0
 
     var maxCount: Int {
         didSet {
@@ -66,6 +90,8 @@ final class ClipboardStore {
             trim()
         }
     }
+    /// 1 件あたりの大きさの上限（10 MB）
+    static let maxItemBytes = 10 * 1024 * 1024
     static let defaultMaxCount = 1000
     /// メモリだけに持つので、増やしすぎないよう上限を設ける。
     static let maxCountLimit = 10_000
@@ -204,6 +230,13 @@ final class ClipboardStore {
             if let data = pbItem.data(forType: type) { reps.append((type, data)) }
         }
         guard !reps.isEmpty else { return nil }
+
+        // 巨大なコピーは、メモリを使いすぎて全体が重くなるので、上限を設ける。
+        // 上限を超えたら、テキストだけ（書式なし）で残す。それも上限を超えるものは記録しない。
+        if reps.reduce(0, { $0 + $1.1.count }) > Self.maxItemBytes {
+            guard let text = pbItem.string(forType: .string), text.utf8.count <= Self.maxItemBytes else { return nil }
+            reps = [(.string, Data(text.utf8))]
+        }
 
         let fileURLs = (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         let text = pbItem.string(forType: .string)
