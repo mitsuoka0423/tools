@@ -12,27 +12,35 @@ enum SelectionReader {
         let isSecure: Bool
     }
 
-    /// 他のアプリが応答しないときに、ここで長く止まらないための上限（秒）
-    private static let timeout: Float = 0.25
-    /// Electron のアプリで、Accessibility を有効にするよう一度だけ頼んだプロセス
-    private static var requestedManualAccessibility = Set<pid_t>()
+    enum ReadResult {
+        case selection(Selection)
+        /// 読めるが、いま選択はない
+        case nothingSelected
+        /// VS Code など EditContext を使う入力欄。選んだ文字が macOS のアクセシビリティに
+        /// 公開されない（Chromium の macOS 側の制限）ため、アプリ側の設定で直すしかない。
+        case blockedByEditContext
+    }
 
-    static func read(pid: pid_t) -> Selection? {
+    /// Chromium が EditContext を使う入力欄に付ける DOM クラス。
+    /// これが見えたら、テキストはアクセシビリティツリーのどこにも存在しない。
+    private static let editContextDOMClass = "native-edit-context"
+
+    static func read(pid: pid_t) -> ReadResult {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, timeout)
         guard let focused = element(system, kAXFocusedUIElementAttribute) else {
             requestManualAccessibility(pid: pid)
-            return nil
+            return .nothingSelected
         }
         AXUIElementSetMessagingTimeout(focused, timeout)
 
         let role = string(focused, kAXRoleAttribute), subrole = string(focused, kAXSubroleAttribute)
         let isSecure = subrole == (kAXSecureTextFieldSubrole as String) || role == "AXSecureTextField"
-        if isSecure { return Selection(text: "", rect: nil, isSecure: true) }
+        if isSecure { return .selection(Selection(text: "", rect: nil, isSecure: true)) }
 
         // 1. ふつうの文字の欄（テキストエディット、メモ、多くの入力欄）
         if let text = string(focused, kAXSelectedTextAttribute), !text.isEmpty {
-            return Selection(text: text, rect: boundsOfSelectedRange(focused), isSecure: false)
+            return .selection(Selection(text: text, rect: boundsOfSelectedRange(focused), isSecure: false))
         }
         // 2. Web の文章（Safari・Chrome など）：選択は「テキストマーカー」で表されている。親をたどって探す
         var current: AXUIElement? = focused
@@ -45,15 +53,24 @@ enum SelectionReader {
                     var r = CGRect.zero
                     if AXValueGetValue(v as! AXValue, .cgRect, &r) { rect = r }
                 }
-                return Selection(text: text, rect: rect, isSecure: false)
+                return .selection(Selection(text: text, rect: rect, isSecure: false))
             }
             current = element(el, kAXParentAttribute)
         }
+        // 3. どれにも当たらなければ、EditContext の入力欄かを確かめる（VS Code など）
+        if strings(focused, "AXDOMClassList")?.contains(editContextDOMClass) == true {
+            return .blockedByEditContext
+        }
         requestManualAccessibility(pid: pid)
-        return nil
+        return .nothingSelected
     }
 
     // MARK: 内部
+
+    /// 他のアプリが応答しないときに、ここで長く止まらないための上限（秒）
+    private static let timeout: Float = 0.25
+    /// Electron のアプリで、Accessibility を有効にするよう頼んだことのあるプロセス
+    private static var requestedManualAccessibility = Set<pid_t>()
 
     private static func boundsOfSelectedRange(_ el: AXUIElement) -> CGRect? {
         guard let range = value(el, kAXSelectedTextRangeAttribute),
@@ -65,10 +82,11 @@ enum SelectionReader {
     }
 
     /// Electron のアプリは、頼まないと Accessibility の情報を出さない。次の読み取りから読めるよう、一度だけ頼む。
+    /// 失敗したときは印を付けないので、次の読み取りで又一次太できる（相手の都合で後から読めるようになるため）。
     private static func requestManualAccessibility(pid: pid_t) {
         guard !requestedManualAccessibility.contains(pid) else { return }
-        requestedManualAccessibility.insert(pid)
-        AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        let err = AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        if err == .success { requestedManualAccessibility.insert(pid) }
     }
 
     private static func value(_ el: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -83,6 +101,10 @@ enum SelectionReader {
 
     private static func string(_ el: AXUIElement, _ attribute: String) -> String? {
         value(el, attribute) as? String
+    }
+
+    private static func strings(_ el: AXUIElement, _ attribute: String) -> [String]? {
+        value(el, attribute) as? [String]
     }
 
     private static func parameterized(_ el: AXUIElement, _ attribute: String, _ parameter: CFTypeRef) -> CFTypeRef? {

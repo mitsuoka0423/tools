@@ -190,7 +190,18 @@ final class AutoCopyEngine {
               app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               !PrivacySettings.shared.isSensitive(app.bundleIdentifier),
               !settings.excludedBundleIDs.contains(app.bundleIdentifier ?? "") else { return }
-        guard let selection = SelectionReader.read(pid: app.processIdentifier), !selection.isSecure else { return }
+        let selection: SelectionReader.Selection
+        switch SelectionReader.read(pid: app.processIdentifier) {
+        case .selection(let s):
+            guard !s.isSecure else { return }
+            selection = s
+        case .blockedByEditContext:
+            // VS Code など。読み取りの失敗を繰り返すより、直しかたを一度だけ知らせる
+            EditContextGuide.showOnce(for: app)
+            return
+        case .nothingSelected:
+            return
+        }
         let text = selection.text
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= Self.maxBytes else { return }
         // 直前に自動コピーしたものと、同じアプリの同じ選択なら、もう一度はコピーしない

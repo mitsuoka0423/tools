@@ -197,6 +197,9 @@ struct AutoCopySettingsView: View {
             } footer: {
                 Text("パスワードの欄で選んだ文字はコピーしません。自動コピーした内容は、ほかの Apple 製デバイスには送りません。")
                     .font(.caption).foregroundStyle(.secondary)
+                Text("VS Code・Cursor などでは、アプリ側の editor.editContext の設定を false にすると動くようになります（既定の EditContext 方式は、選んだ文字を macOS のアクセシビリティに出さないため）。")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
