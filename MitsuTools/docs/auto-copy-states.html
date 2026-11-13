@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選択範囲の自動コピー：状態と UI</title>
+<style>
+:root{
+  --page:#f2f2f7; --window:#ececec; --content:#fff; --group:rgba(0,0,0,.035); --sep:rgba(0,0,0,.09);
+  --label:rgba(0,0,0,.88); --label2:rgba(0,0,0,.52); --label3:rgba(0,0,0,.25);
+  --fill:rgba(0,0,0,.06); --fill2:rgba(0,0,0,.1); --accent:#0088ff; --green:#30b650; --orange:#ff9500; --red:#ff3b30;
+  --sel:rgba(0,136,255,.28);
+  --glass:rgba(255,255,255,.62); --glass-edge:rgba(255,255,255,.8); --shadow:0 10px 30px rgba(0,0,0,.2),0 1px 4px rgba(0,0,0,.1);
+  --n-idle:#e5e5ea; --n-input:#e8f1ff; --n-wait:#fff1d6; --n-read:#e4e2ff; --n-ok:#dcf5e3; --n-ng:#ffe3d6; --stroke:rgba(0,0,0,.35);
+}
+:root[data-theme="dark"]{
+  --page:#000; --window:#262626; --content:#1c1c1e; --group:rgba(255,255,255,.05); --sep:rgba(255,255,255,.09);
+  --label:rgba(255,255,255,.9); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.28);
+  --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14); --accent:#0a91ff; --sel:rgba(10,145,255,.4);
+  --glass:rgba(60,60,64,.6); --glass-edge:rgba(255,255,255,.2); --shadow:0 10px 30px rgba(0,0,0,.5),0 1px 4px rgba(0,0,0,.4);
+  --n-idle:#3a3a3c; --n-input:#1d3350; --n-wait:#4a3a14; --n-read:#2d2a58; --n-ok:#1d4a2a; --n-ng:#562d1a; --stroke:rgba(255,255,255,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--label);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+header{max-width:1240px;margin:auto;padding:24px 20px 4px}
+h1{font-size:24px;margin:0 0 6px}
+.lead{color:var(--label2);margin:0;max-width:820px}
+nav{max-width:1240px;margin:14px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+nav a{color:var(--label);text-decoration:none;background:var(--fill);padding:4px 12px;border-radius:999px;font-size:13px}
+nav a:hover{background:var(--fill2)}
+.seg{margin-left:auto;display:inline-flex;padding:3px;border-radius:999px;background:var(--fill);gap:2px}
+.seg button{border:0;background:transparent;color:var(--label);font:inherit;font-size:13px;padding:3px 12px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--content);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+main{max-width:1240px;margin:auto;padding:8px 20px 60px}
+section{margin-top:34px}
+h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--sep)}
+h3{font-size:15px;margin:18px 0 6px}
+p{margin:6px 0}
+.card{background:var(--content);border-radius:16px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--sep);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--label2);font-weight:600;white-space:nowrap}
+code,kbd{font:12px ui-monospace,Menlo,monospace;background:var(--fill);padding:1px 6px;border-radius:5px}
+.tag{display:inline-block;font-size:11px;padding:0 8px;border-radius:999px;background:var(--fill2);color:var(--label2);white-space:nowrap}
+.q{color:var(--accent);font-weight:600}
+ul{margin:6px 0;padding-left:20px} li{margin:3px 0}
+.muted{color:var(--label2)}
+
+/* 状態遷移図 */
+.diagram{overflow-x:auto;background:var(--content);border-radius:16px;box-shadow:0 0 0 .5px var(--sep);padding:10px}
+svg text{font-family:-apple-system,"Hiragino Sans",sans-serif;fill:var(--label)}
+svg .node rect{stroke:var(--stroke);stroke-width:1.2}
+svg .node.idle rect{fill:var(--n-idle)} svg .node.input rect{fill:var(--n-input)} svg .node.wait rect{fill:var(--n-wait)}
+svg .node.read rect{fill:var(--n-read)} svg .node.ok rect{fill:var(--n-ok)} svg .node.ng rect{fill:var(--n-ng)}
+svg .node.on rect{stroke:var(--accent);stroke-width:4}
+svg .node .t1{font-size:13px;font-weight:600} svg .node .t2{font-size:11px;fill:var(--label2)}
+svg .edge{fill:none;stroke:var(--stroke);stroke-width:1.5}
+svg .edge.dash{stroke-dasharray:5 4}
+svg .lab{font-size:11px;fill:var(--label2)}
+svg .lab.strong{fill:var(--label);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--label2);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px;box-shadow:inset 0 0 0 1px var(--stroke)}
+
+/* シナリオ */
+.flow{display:flex;gap:4px;flex-wrap:wrap;align-items:center;font-size:12px}
+.flow b{background:var(--fill2);border-radius:6px;padding:0 7px;font-weight:600}
+.flow b.wait{background:var(--n-wait)} .flow b.ok{background:var(--n-ok)} .flow b.read{background:var(--n-read)} .flow b.ng{background:var(--n-ng)}
+.flow span.ar{color:var(--label3)}
+.res{font-weight:600}
+.res.yes{color:var(--green)} .res.no{color:var(--label2)} .res.ng{color:var(--orange)}
+
+/* ポップアップ（本物の見た目） */
+.pop{position:absolute;z-index:5;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;pointer-events:none;
+  padding:6px 14px 6px 10px;border-radius:999px;font-size:13px;font-weight:600;color:var(--label);
+  background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.8);backdrop-filter:blur(18px) saturate(1.8);
+  box-shadow:var(--shadow),inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-edge)}
+.pop .ck{width:18px;height:18px;border-radius:50%;background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.pop.ng .ck{background:var(--orange)}
+.pop small{font-weight:500;color:var(--label2);font-size:12px}
+.pop.above{bottom:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+.pop.below{top:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+.pop.fixed{position:fixed;transform:translateX(-50%)}
+.pop::after{content:"";position:absolute;left:50%;width:10px;height:10px;margin-left:-5px;background:inherit;
+  -webkit-backdrop-filter:inherit;backdrop-filter:inherit;transform:rotate(45deg);box-shadow:none;display:none}
+
+/* 画面の模型 */
+.mock{position:relative;border-radius:12px;background:var(--content);box-shadow:0 0 0 .5px var(--sep),0 4px 14px rgba(0,0,0,.08);overflow:visible}
+.mock .bar{height:24px;border-radius:12px 12px 0 0;background:var(--window);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:var(--label2)}
+.mock .bar i{width:9px;height:9px;border-radius:50%;background:var(--fill2);display:inline-block}
+.mock .bar i:first-child{background:#ff5f57}
+.mock .body{padding:44px 16px 16px;font-size:14px;line-height:26px}
+.mock .body.tight{padding-top:12px}
+.sel{background:var(--sel);border-radius:3px;position:relative;display:inline}
+.selblock{background:var(--sel);border-radius:3px;position:relative}
+.caption{font-size:12px;color:var(--label2);margin:6px 2px 0}
+.stateTag{display:inline-block;font-size:11px;font-weight:600;background:var(--fill2);border-radius:6px;padding:0 7px;margin-right:6px}
+
+/* 試せる動作 */
+.sim{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.sim{grid-template-columns:1fr}}
+.demo{position:relative;padding:14px 16px;border-radius:12px;background:var(--content);box-shadow:0 0 0 .5px var(--sep);margin-bottom:12px;line-height:28px;cursor:text}
+.demo h4{margin:0 0 4px;font-size:12px;color:var(--label2);font-weight:600;line-height:1.4}
+.demo p{margin:0;padding:0 2px}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.pill{font-weight:700;padding:2px 12px;border-radius:999px;background:var(--fill2)}
+.pill.wait{background:var(--n-wait)} .pill.ok{background:var(--n-ok)} .pill.read{background:var(--n-read)} .pill.ng{background:var(--n-ng)} .pill.input{background:var(--n-input)}
+.clip{padding:8px 12px;border-radius:10px;background:var(--fill);font-size:13px;word-break:break-all;min-height:38px}
+.log{height:230px;overflow:auto;background:var(--fill);border-radius:10px;padding:6px 10px;font:12px/1.7 ui-monospace,Menlo,monospace}
+.log div.copy{color:var(--green);font-weight:700}
+.log div.dim{color:var(--label2)}
+.ctl{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:13px;margin:8px 0}
+.ctl label{display:flex;align-items:center;gap:6px}
+input[type=range]{accent-color:var(--accent)}
+.seg2{display:inline-flex;padding:2px;border-radius:999px;background:var(--fill);gap:2px}
+.seg2 button{border:0;background:transparent;color:var(--label);font:inherit;font-size:12px;padding:2px 10px;border-radius:999px;cursor:pointer}
+.seg2 button.on{background:var(--content);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.pwd{font:inherit;padding:3px 8px;border-radius:7px;border:1px solid var(--sep);background:var(--content);color:var(--label)}
+
+/* 設定・メニュー */
+.win{border-radius:22px;background:var(--window);box-shadow:0 18px 50px rgba(0,0,0,.22),0 0 0 .5px var(--sep);overflow:hidden}
+.win .top{padding:10px 14px 4px;display:grid;grid-template-columns:60px 1fr 60px}
+.win .tls{display:flex;gap:6px;padding-top:3px}.win .tls i{width:11px;height:11px;border-radius:50%;background:var(--fill2)}.win .tls i:first-child{background:#ff5f57}
+.win .ttl{text-align:center;font-weight:600;font-size:13px}
+.win .tabs{display:flex;justify-content:center;gap:2px;margin-top:4px;flex-wrap:wrap}
+.win .tabs span{font-size:10px;padding:3px 7px;border-radius:9px;color:var(--label2)}
+.win .tabs span.on{background:var(--fill2);color:var(--accent)}
+.form{padding:2px 16px 16px}
+.gh{font-size:12px;font-weight:600;color:var(--label2);margin:14px 4px 6px}
+.gp{background:var(--group);border-radius:10px;padding:0 12px;box-shadow:0 0 0 .5px var(--sep)}
+.r{display:flex;align-items:center;gap:10px;min-height:38px;border-bottom:1px solid var(--sep);font-size:13px}
+.r:last-child{border-bottom:0}
+.r .t{flex:1}.r .t small{display:block;color:var(--label2);font-size:11px}
+.tog{width:36px;height:21px;border-radius:999px;background:var(--green);position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:2px;left:17px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tog.off{background:var(--fill2)}.tog.off::after{left:2px}
+.pop2{font-size:12px;background:var(--content);border-radius:6px;padding:2px 8px;box-shadow:0 0 0 .5px var(--sep)}
+.menu{width:270px;border-radius:12px;padding:5px;background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);box-shadow:var(--shadow),inset 0 0 0 .5px var(--glass-edge);font-size:13px}
+.menu .mi{display:flex;gap:8px;align-items:center;padding:4px 9px;border-radius:7px;height:26px}
+.menu .mi .ic{width:16px;text-align:center}.menu .mi .t{flex:1}.menu .mi .k{color:var(--label2)}
+.menu .mi.hl{background:var(--accent);color:#fff}.menu .mi.hl .k{color:#fff}
+.menu .sep{height:1px;background:var(--sep);margin:5px 10px}
+.warn{color:var(--orange);font-size:12px}
+.ok-txt{color:var(--green)}
+
+/* 計測・設定・バナー */
+.btn{display:inline-block;border:0;border-radius:999px;font:inherit;font-size:13px;padding:5px 16px;cursor:pointer;background:var(--accent);color:#fff}
+.btn.ghost{background:var(--fill2);color:var(--label)} .btn:disabled{opacity:.4;cursor:default}
+.measurebox{border-radius:14px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:14px;
+  background:var(--content);box-shadow:0 0 0 .5px var(--sep);user-select:none;-webkit-user-select:none}
+.measurebox#mbox{cursor:pointer;background:var(--fill)} .measurebox.active,#mbox.armed{box-shadow:0 0 0 2.5px var(--accent)}
+.measurebox .big,#mbigtext{font-size:18px;font-weight:700}
+.measurebox.static{min-height:120px}
+.dots{display:flex;gap:6px;margin-top:4px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--fill2);display:inline-block}.dots i.on{background:var(--accent)}
+.sl{width:90px;height:4px;border-radius:2px;background:var(--fill2);position:relative;flex:none}.sl i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--accent)}
+.sl::after{content:"";position:absolute;top:-5px;left:calc(var(--p,0)*1%);}
+.val{width:56px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--label2)}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--orange) 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 45%,transparent);margin-bottom:6px}
+.banner .bi{font-size:18px;color:var(--orange)}.banner .bt{flex:1;font-size:13px;line-height:1.4}.banner .bt small{display:block;color:var(--label2);font-size:11px}
+tr.rec td{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>選択範囲の自動コピー：状態と UI のすり合わせ</h1>
+  <p class="lead">マウスで選択した範囲を、自動でクリップボードにコピーする機能の案です。まず<b>状態</b>を定義し、<b>状態遷移図</b>で流れを示し、状態ごとの <b>UI</b> を作りました。「試せる動作」では、ブラウザ上で実際にクリックして、状態の移り変わりとコピーされる内容を確かめられます。最後の「決めたいこと」に、すり合わせたい点をまとめています。</p>
+  <p class="lead" style="margin-top:6px"><span class="tag">更新</span> 待ち時間を「ダブル用」と「トリプル用」に分け、設定で変えられるようにしました（2・3・5・8）。クリックの間隔を<b>計測して自動で調整する</b>機能を足しました（7）。設定は、機能のオンオフだけにしました（8）。除外・上限の整理案を（9）、許可が必要なときの表示の平仄を（10）にまとめました。</p>
+</header>
+<nav>
+  <a href="#premise">1 前提</a><a href="#states">2 状態の定義</a><a href="#diagram">3 状態遷移図</a><a href="#scenario">4 シナリオ</a>
+  <a href="#try">5 試せる動作</a><a href="#ui">6 状態ごとの UI</a><a href="#measure">7 計測と自動調整</a><a href="#settings">8 設定とメニュー</a>
+  <a href="#scope">9 除外・上限</a><a href="#perm">10 許可の表示</a><a href="#questions">11 決めたいこと</a>
+  <div class="seg" id="theme"><button data-t="light" class="on">ライト</button><button data-t="dark">ダーク</button></div>
+</nav>
+<main>
+
+<section id="premise">
+  <h2>1 前提</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">やること</h3>
+      <ul>
+        <li>左ボタンの操作を見て、選択が<b>確定した</b>ときに、その範囲をクリップボードにコピーする。</li>
+        <li>コピーしたら、コピーした範囲の少し上に「コピーしました」のポップアップを出す。</li>
+        <li>クリックの途中（1 回目・2 回目）では、コピーしない。コピーするのは、<b>最後の選択だけ</b>。</li>
+      </ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">確定の考え方</h3>
+      <ul>
+        <li>ドラッグ：ボタンを離したとき。</li>
+        <li>ダブルクリックで終わる：2 回目を離したあと、<b>3 回目が来ないまま T3 が過ぎたとき</b>。</li>
+        <li>トリプルクリック：3 回目を離したとき（待たずに確定）。</li>
+        <li><b>T2</b> ＝ ダブルクリックを待つ時間（1 回目を離してから、2 回目を押すまでの許容）。<b>T3</b> ＝ トリプルクリックを待つ時間（2 回目を離してから、3 回目を押すまでの許容）。</li>
+        <li>初期値は、システムの「ダブルクリックの間隔」（<code>NSEvent.doubleClickInterval</code>。通常 0.5 秒前後）。設定で変えられ、計測で自動調整もできる（7）。</li>
+        <li>ダブルクリックで終わったときに、コピーまでに感じる待ちは <b>T3</b>。T3 を短くするほど、単語のコピーが速くなる。</li>
+      </ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">技術的な前提（要確認）</h3>
+      <ul>
+        <li>マウスの動きは、グローバルなイベントの監視で見る。</li>
+        <li>選択範囲の文字は、Accessibility（<code>AXSelectedText</code>）で読む。⌘C を送る方法は、クリップボードを書き換えるので、使わない案です。</li>
+        <li>ポップアップの位置は、Accessibility の選択範囲の座標から決める。座標が取れないアプリでは、マウスの位置の上に出す。</li>
+        <li>機能は、ほかの機能と同じく、はじめはオフ。オンにすると、アクセシビリティの許可が要る。</li>
+      </ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">対象外</h3>
+      <ul>
+        <li>キーボードでの選択（<kbd>⇧</kbd>＋矢印、<kbd>⌘A</kbd>）。</li>
+        <li>パスワード欄（セキュアな入力欄）。いつも除外する。</li>
+        <li>右・中ボタン。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="states">
+  <h2>2 状態の定義</h2>
+  <div class="card" style="overflow-x:auto">
+  <table>
+    <tr><th>ID</th><th>状態</th><th>意味</th><th>入る条件</th><th>画面の表示</th></tr>
+    <tr><td><code>S0</code></td><td><b>待機</b></td><td>何も起きていない。</td><td>起動時／コピーのあと／何もコピーせずに終わったとき</td><td>なし</td></tr>
+    <tr><td><code>S1</code></td><td><b>1 回目 押下中</b></td><td>左ボタンを押している（1 回目）。</td><td>S0 で押した</td><td>なし</td></tr>
+    <tr><td><code>S2</code></td><td><b>ダブル待ち</b></td><td>1 回目を離した。T2 の間、2 回目を待つ。</td><td>S1 で離した</td><td>なし</td></tr>
+    <tr><td><code>S3</code></td><td><b>2 回目 押下中</b></td><td>2 回目を押している。</td><td>S2 で T2 以内に押した</td><td>なし</td></tr>
+    <tr><td><code>S4</code></td><td><b>トリプル待ち</b></td><td>2 回目を離した。T3 の間、3 回目を待つ。</td><td>S3 で離した</td><td>なし</td></tr>
+    <tr><td><code>S5</code></td><td><b>3 回目 押下中</b></td><td>3 回目を押している。</td><td>S4 で T3 以内に押した</td><td>なし</td></tr>
+    <tr><td><code>S6</code></td><td><b>ドラッグ中</b></td><td>押したまま動かして、範囲を選んでいる。</td><td>S1・S3・S5 で、しきい値（4pt）以上動かした</td><td>なし</td></tr>
+    <tr><td><code>S7</code></td><td><b>読み取り中</b></td><td>選択が確定した。範囲の文字を読んで、コピーするかを決める。数十ミリ秒。</td><td>S2 で T2 が過ぎた／S4 で T3 が過ぎた／S5・S6 で離した</td><td>なし</td></tr>
+    <tr><td><code>S8</code></td><td><b>コピー済み</b></td><td>クリップボードに書いて、通知を出している。</td><td>S7 で、読めて、除外でもなかった</td><td><span class="tag">ポップアップ</span> 約 1.2 秒</td></tr>
+    <tr><td><code>S9</code></td><td><b>コピーできない</b></td><td>選択はあるが、読み取れなかった。</td><td>S7 で、読めなかった</td><td><span class="tag">失敗ポップアップ</span> 約 2 秒（出すかは要相談）</td></tr>
+  </table>
+  </div>
+  <h3>決まりごと</h3>
+  <div class="card"><ul>
+    <li><b>クリップボードに書くのは、S7 から S8 へ進むときだけ</b>。S1〜S6 の間は、選択が変わっても、何も書かない。</li>
+    <li>S7 で、選択が空なら、何もせずに S0 へ戻る（単独クリックは、ここで終わる）。</li>
+    <li>S7 で、除外アプリ・パスワード欄だった場合も、何もせずに S0 へ戻る（ポップアップなし）。</li>
+    <li>どの状態でも、<kbd>Esc</kbd>・アプリの切り替え・修飾キー（⌘⌥⌃）を押しながらの操作が入ったら、S0 へ戻る（設定で変えられる案）。</li>
+    <li>S8 の間に、次の左ボタンが押されたら、ポップアップをすぐ消して、S1 へ進む。</li>
+  </ul></div>
+</section>
+
+<section id="diagram">
+  <h2>3 状態遷移図</h2>
+  <div class="diagram"><svg id="svg" viewBox="0 0 1180 690" style="display:block;width:100%;min-width:900px;height:auto" role="img" aria-label="状態遷移図"></svg></div>
+  <div class="legend">
+    <span><i style="background:var(--n-idle)"></i>待機</span><span><i style="background:var(--n-input)"></i>ボタンを押している</span>
+    <span><i style="background:var(--n-wait)"></i>次のクリックを待つ（T）</span><span><i style="background:var(--n-read)"></i>確定・読み取り</span>
+    <span><i style="background:var(--n-ok)"></i>コピー済み</span><span><i style="background:var(--n-ng)"></i>コピーできない</span>
+    <span>「T2 内」＝ T2 以内、「T3 内」＝ T3 以内</span><span>図の <b style="color:var(--accent)">青い太枠</b>は、「5 試せる動作」の現在の状態です</span>
+  </div>
+</section>
+
+<section id="scenario">
+  <h2>4 シナリオ：途中の選択ではコピーしない</h2>
+  <div class="card" style="overflow-x:auto">
+  <table>
+    <tr><th>操作</th><th>状態の流れ</th><th>コピーされるもの</th></tr>
+    <tr><td>ドラッグで選ぶ</td><td><div class="flow"><b>S0</b><span class="ar">→</span><b>S1</b><span class="ar">→</span><b>S6</b><span class="ar">→</span><b class="read">S7</b><span class="ar">→</span><b class="ok">S8</b><span class="ar">→</span><b>S0</b></div></td><td class="res yes">ドラッグした範囲（1 回）</td></tr>
+    <tr><td>単独クリック</td><td><div class="flow"><b>S0</b><span class="ar">→</span><b>S1</b><span class="ar">→</span><b class="wait">S2</b><span class="ar">→ T2 経過 →</span><b class="read">S7</b><span class="ar">→ 選択なし →</span><b>S0</b></div></td><td class="res no">なし</td></tr>
+    <tr><td>ダブルクリックで終わる</td><td><div class="flow"><b>S0</b><span class="ar">→</span><b>S1</b><span class="ar">→</span><b class="wait">S2</b><span class="ar">→</span><b>S3</b><span class="ar">→</span><b class="wait">S4</b><span class="ar">→ T3 経過 →</span><b class="read">S7</b><span class="ar">→</span><b class="ok">S8</b><span class="ar">→</span><b>S0</b></div></td><td class="res yes">単語だけ（1 回）<br><span class="muted">途中の S2 では、書かない</span></td></tr>
+    <tr><td>トリプルクリック</td><td><div class="flow"><b>S0</b><span class="ar">→</span><b>S1</b><span class="ar">→</span><b class="wait">S2</b><span class="ar">→</span><b>S3</b><span class="ar">→</span><b class="wait">S4</b><span class="ar">→</span><b>S5</b><span class="ar">→</span><b class="read">S7</b><span class="ar">→</span><b class="ok">S8</b><span class="ar">→</span><b>S0</b></div></td><td class="res yes">行だけ（1 回）<br><span class="muted">途中の単語は、書かない</span></td></tr>
+    <tr><td>ダブルクリックしたまま動かす</td><td><div class="flow"><b>S0</b><span class="ar">→</span><b>S1</b><span class="ar">→</span><b class="wait">S2</b><span class="ar">→</span><b>S3</b><span class="ar">→</span><b>S6</b><span class="ar">→</span><b class="read">S7</b><span class="ar">→</span><b class="ok">S8</b><span class="ar">→</span><b>S0</b></div></td><td class="res yes">ドラッグした範囲（単語単位で広がる）</td></tr>
+    <tr><td>選択を読み取れないアプリ</td><td><div class="flow"><b>S0</b><span class="ar">→ … →</span><b class="read">S7</b><span class="ar">→</span><b class="ng">S9</b><span class="ar">→</span><b>S0</b></div></td><td class="res ng">なし（失敗を知らせる）</td></tr>
+  </table>
+  </div>
+</section>
+
+<section id="try">
+  <h2>5 試せる動作</h2>
+  <p class="muted">下の文章を、実際にクリック・ダブルクリック・トリプルクリック・ドラッグしてみてください。右に、状態・ログ・クリップボードの中身が出ます。上の遷移図も、いまの状態に合わせて光ります。</p>
+  <div class="ctl">
+    <label>T2（ダブルを待つ）<input type="range" id="tT2" min="150" max="1000" step="10" value="500"> <b id="tT2v">500 ms</b></label>
+    <label>T3（トリプルを待つ）<input type="range" id="tT3" min="150" max="1000" step="10" value="500"> <b id="tT3v">500 ms</b></label>
+    <label>ポップアップの時間<input type="range" id="tP" min="600" max="3000" step="100" value="1200"> <b id="tPv">1.2 秒</b></label>
+    <span>内容 <span class="seg2" id="popContent"><button data-v="plain" class="on">文言のみ</button><button data-v="count">文言＋文字数</button></span></span>
+  </div>
+  <div class="sim">
+    <div>
+      <div class="demo" id="demoA"><h4>対応しているアプリ（選択を読み取れる）</h4>
+        <p>MitsuTools はメニューバーに常駐します。</p>
+        <p>選択した範囲を、自動でクリップボードにコピーします。</p>
+        <p>ダブルクリックでは単語、トリプルクリックでは行をコピーします。</p>
+      </div>
+      <div class="demo" id="demoB" data-unreadable="1"><h4>選択を読み取れないアプリ（例）</h4>
+        <p>このアプリでは、選択しても文字を読み取れません。</p>
+      </div>
+      <div class="demo" id="demoC" data-secure="1"><h4>パスワード欄（いつも除外）</h4>
+        <p>パスワード： <input class="pwd" id="pwd" type="text" value="correct-horse-battery" style="width:220px"></p>
+      </div>
+    </div>
+    <div>
+      <div class="status"><span class="muted">いまの状態</span><span class="pill" id="pill">S0 待機</span><span class="muted" id="pillNote"></span></div>
+      <div class="muted" style="font-size:12px;margin-bottom:4px">クリップボード（模擬）</div>
+      <div class="clip" id="clip"><span class="muted">（空）</span></div>
+      <div class="muted" style="font-size:12px;margin:10px 0 4px">ログ <span class="tag">コピーの回数: <b id="copyCount">0</b></span> <button class="seg2" style="border:0;cursor:pointer;padding:0 10px" id="clear">消す</button></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</section>
+
+<section id="ui">
+  <h2>6 状態ごとの UI</h2>
+  <h3>S0〜S7：何も表示しない</h3>
+  <div class="card">
+    <p>待機・押下中・待ち・ドラッグ中・読み取り中は、画面に何も出しません。</p>
+    <ul>
+      <li>待ちの間（S2・S4）に何かを出すと、ダブル・トリプルクリックのたびにちらつくので、出さない。</li>
+      <li>メニューバーのアイコンも変えない（アイコンはモジュールによらず固定にする方針）。</li>
+    </ul>
+  </div>
+
+  <h3>S8：コピー済み（ポップアップ）</h3>
+  <p class="muted">選択範囲の<b>最初の行の中央の、すぐ上</b>に出します。約 1.2 秒で自動で消えます。マウスの操作は、ポップアップを通り抜けます（クリックを邪魔しない）。</p>
+  <div class="grid3">
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body">
+      <div>MitsuTools はメニューバーに常駐します。</div>
+      <div>選択した範囲を、自動で<span class="sel">クリップボード<span class="pop above"><span class="ck">✓</span>コピーしました</span></span>にコピーします。</div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>ダブルクリック（単語）</div></div>
+
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body">
+      <div>MitsuTools はメニューバーに常駐します。</div>
+      <div class="selblock">選択した範囲を、自動でクリップボードにコピーします。<span class="pop above"><span class="ck">✓</span>コピーしました</span></div>
+      <div>ダブルクリックでは単語、トリプルクリックでは行をコピーします。</div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>トリプルクリック（行）</div></div>
+
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body">
+      <div>MitsuTools はメニューバーに常駐します。</div>
+      <div>選択した範囲を、自動で<span class="sel">クリップボードにコピーします。<span class="pop above" style="left:50%"><span class="ck">✓</span>コピーしました</span></span></div>
+      <div><span class="sel">ダブルクリックでは単語、</span>トリプルクリックでは行をコピーします。</div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>ドラッグ（複数行）：最初の行の上</div></div>
+
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body">
+      <div>MitsuTools はメニューバーに常駐します。</div>
+      <div>選択した範囲を、自動で<span class="sel">クリップボード<span class="pop above"><span class="ck">✓</span>コピーしました <small>7 文字</small></span></span>にコピーします。</div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>内容を「文言＋文字数」にした場合</div></div>
+
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body tight">
+      <div><span class="sel">画面の上の端に近い選択<span class="pop below"><span class="ck">✓</span>コピーしました</span></span>は、上に出せないので、下に出します。</div>
+      <div>2 行目の文章です。</div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>画面の上端付近：下に反転して表示</div></div>
+
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>ターミナル</div><div class="body">
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px">$ git log --oneline</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px"><span class="sel">a13d856 chore: bump version<span class="pop above" style="left:35%"><span class="ck">✓</span>コピーしました</span></span></div>
+    </div></div><div class="caption"><span class="stateTag">S8</span>座標が取れないアプリ：マウスの位置の上に出す</div></div>
+  </div>
+
+  <h3>S9：コピーできない（失敗ポップアップ）</h3>
+  <p class="muted">出すかどうかは、すり合わせたい点です。出す場合の見た目です。</p>
+  <div class="grid3">
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>ほかのアプリ</div><div class="body">
+      <div><span class="sel">選択しても読み取れない文章<span class="pop above ng"><span class="ck">!</span>コピーできませんでした</span></span>です。</div>
+    </div></div><div class="caption"><span class="stateTag">S9</span>読み取れないアプリ（短い表示）</div></div>
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>ほかのアプリ</div><div class="body">
+      <div><span class="sel">選択しても読み取れない文章<span class="pop above ng"><span class="ck">!</span>コピーできませんでした <small>このアプリでは選択を読み取れません</small></span></span>です。</div>
+    </div></div><div class="caption"><span class="stateTag">S9</span>理由つき（長い表示）</div></div>
+    <div><div class="card"><b>出さない案</b><p class="muted" style="margin:4px 0 0">読み取れないアプリでは、何も出さない。普段使いで邪魔にならないが、「なぜコピーされないのか」が、わからない。</p></div></div>
+  </div>
+</section>
+
+<section id="measure">
+  <h2>7 計測と自動調整</h2>
+  <p>ダブル・トリプルクリックの間隔は、人によって違います。自分のクリックの間隔を<b>計測</b>して、T2・T3 を決める機能です。計測のしくみを使って、使いながら<b>自動で調整</b>することもできます。</p>
+
+  <h3>何を測るか</h3>
+  <div class="grid2">
+    <div class="card"><b>測る値</b>
+      <ul>
+        <li><b>g12</b>：1 回目を押してから、2 回目を押すまでの時間。T2 を決める元になる。</li>
+        <li><b>g23</b>：2 回目を押してから、3 回目を押すまでの時間。T3 を決める元になる。</li>
+      </ul>
+      <p class="muted" style="margin-top:6px">測るのは、時刻だけです。選んだ文字・アプリ名・位置は、測りません。</p>
+    </div>
+    <div class="card"><b>値の決め方（案）</b>
+      <ul>
+        <li>T ＝ 測った間隔の<b>最大値 × 1.3</b>（余裕）。ただし 150〜1000 ms の範囲に収める。</li>
+        <li>トライが 10 回以上あるときは、長いほうの 10% を、はずれ値として除く。</li>
+        <li>T2 は g12 から、T3 は g23 から、別々に決める。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>計測の状態</h3>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>ID</th><th>状態</th><th>意味</th><th>画面の表示</th></tr>
+    <tr><td><code>M0</code></td><td><b>計測していない</b></td><td>ふだんの状態。</td><td>設定ペインに「計測する…」ボタン</td></tr>
+    <tr><td><code>M1</code></td><td><b>トライ待ち</b></td><td>k / N 回目のトライの、1 回目のクリックを待っている。</td><td>計測の画面（ガイド）</td></tr>
+    <tr><td><code>M2</code></td><td><b>トライ中</b></td><td>クリックを記録している。3 回押したら、そのトライは終わり。1.2 秒クリックがなければ、やり直し。</td><td>計測の画面（クリックの数を表示）</td></tr>
+    <tr><td><code>M3</code></td><td><b>結果</b></td><td>N 回ぶんの間隔と、おすすめの T2・T3 を見せている。</td><td>結果の画面</td></tr>
+  </table></div>
+  <div class="diagram" style="margin-top:12px"><svg id="msvg" viewBox="0 -34 1000 290" style="display:block;width:100%;min-width:760px;height:auto" role="img" aria-label="計測の状態遷移図"></svg></div>
+
+  <h3>試せる計測</h3>
+  <p class="muted">下の四角を、ふだんの速さで、<b>3 回続けて</b>クリックしてください（5 回ぶん）。結果の「この値を使う」を押すと、「5 試せる動作」の T2・T3 に反映されます。</p>
+  <div class="sim">
+    <div>
+      <div class="status"><span class="muted">計測の状態</span><span class="pill" id="mpill">M0 計測していない</span><span class="muted" id="mnote"></span></div>
+      <div class="measurebox" id="mbox"><div id="mbigtext">「計測を始める」を押してください</div><div class="muted" id="msub"></div></div>
+      <div class="ctl"><button class="btn" id="mstart">計測を始める</button><button class="btn ghost" id="mcancel">キャンセル</button></div>
+    </div>
+    <div>
+      <div class="muted" style="font-size:12px;margin-bottom:4px">計測した間隔（ms）</div>
+      <div class="clip" id="mres" style="min-height:120px;font-size:13px;line-height:1.9"><span class="muted">（まだありません）</span></div>
+      <div class="ctl"><button class="btn" id="muse" disabled>この値を使う</button><button class="btn ghost" id="mretry" disabled>やり直す</button><button class="btn ghost" id="mclose" disabled>閉じる</button></div>
+    </div>
+  </div>
+
+  <h3>自動調整</h3>
+  <div class="grid2">
+    <div class="card"><b>動き</b>
+      <ul>
+        <li>オンにすると、ふだんのクリックの間隔を、使いながら集める。ダブル・トリプルクリックが起きるたびに、g12・g23 を 1 件として記録する。</li>
+        <li>新しい記録が 10 件たまるたびに、直近 50 件から T2・T3 を計算し直す。1 回に動かすのは、最大 50 ms まで。</li>
+        <li>手動の計測は、自動調整の「最初の値」を決めるのに使える。</li>
+      </ul>
+    </div>
+    <div class="card"><b>保存するもの</b>
+      <ul>
+        <li>集めた間隔は、<b>メモリ上だけ</b>に持つ。ファイルには書かない。アプリを終了すると消える。</li>
+        <li>設定ファイルに残すのは、決まった T2・T3 と、自動調整のオンオフだけ（例：<code>double_click_wait_ms = 320</code>）。</li>
+        <li>設定ペインには、いま集めた件数と、いまの値を出す。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>計測の UI</h3>
+  <div class="grid3">
+    <div><div class="measurebox static"><div class="big">素早く、3 回続けてクリック</div><div class="muted">トライ 2 / 5</div><div class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div></div><div class="caption"><span class="stateTag">M1</span>トライ待ち</div></div>
+    <div><div class="measurebox static active"><div class="big">● ● ○</div><div class="muted">クリック 2 回（あと 1 回）</div><div class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div></div><div class="caption"><span class="stateTag">M2</span>トライ中</div></div>
+    <div><div class="card" style="padding:12px 14px"><b>計測の結果</b>
+      <table style="margin-top:6px"><tr><th></th><th>最大</th><th>おすすめ</th></tr><tr><td>g12（ダブル）</td><td>248 ms</td><td><b>320 ms</b></td></tr><tr><td>g23（トリプル）</td><td>196 ms</td><td><b>260 ms</b></td></tr></table>
+      <div class="ctl" style="margin-bottom:0"><span class="btn" style="cursor:default">この値を使う</span><span class="btn ghost" style="cursor:default">やり直す</span></div></div><div class="caption"><span class="stateTag">M3</span>結果</div></div>
+  </div>
+</section>
+
+<section id="settings">
+  <h2>8 設定とメニュー</h2>
+  <p>設定の状態は、<b>「機能をオンにするか」だけ</b>にしました（オンオフは、「一般」とメニューにある）。どう選ぶか（ドラッグ・ダブル・トリプル）の設定は、なくしました。ポップアップの設定は、前のままです。</p>
+  <div class="grid2">
+    <div>
+      <div class="win"><div class="top"><div class="tls"><i></i><i></i><i></i></div><div><div class="ttl">自動コピー</div>
+        <div class="tabs"><span>一般</span><span>クリップボード</span><span>ウィンドウ</span><span class="on">自動コピー</span><span>アップデート</span></div></div><div></div></div>
+        <div class="form">
+          <div class="gh">クリックの待ち時間</div>
+          <div class="gp">
+            <div class="r"><span class="t">ダブルクリックを待つ時間<small>1 回目のあと、2 回目を待つ長さ</small></span><span class="sl"><i style="width:30%"></i></span><span class="val">320 ms</span></div>
+            <div class="r"><span class="t">トリプルクリックを待つ時間<small>2 回目のあと、3 回目を待つ長さ。短いほど、単語のコピーが速い</small></span><span class="sl"><i style="width:22%"></i></span><span class="val">260 ms</span></div>
+            <div class="r"><span class="t">自動で調整する<small>使いながら、クリックの間隔に合わせます</small></span><span class="tog"></span></div>
+            <div class="r"><span class="t">クリックの間隔を計測<small>3 回続けてのクリックを 5 回測って、待ち時間を決めます</small></span><span class="pop2">計測する…</span></div>
+          </div>
+          <p class="muted" style="font-size:11px;margin:6px 4px 0">集めた間隔：ダブル 38 件・トリプル 12 件（メモリ上のみ。終了すると消えます）</p>
+          <div class="gh">ポップアップ</div>
+          <div class="gp">
+            <div class="r"><span class="t">コピーしたらポップアップを出す</span><span class="tog"></span></div>
+            <div class="r"><span class="t">内容</span><span class="pop2">文言＋文字数 ▾</span></div>
+            <div class="r"><span class="t">表示する時間</span><span class="pop2">1.2 秒 ▾</span></div>
+            <div class="r"><span class="t">コピーできなかったときも出す</span><span class="tog off"></span></div>
+          </div>
+          <div class="gh">除外</div>
+          <div class="gp"><div class="r" style="border:0;min-height:46px"><span class="t muted" style="font-size:12px">除外するアプリ・文字数の上限の置き場所は、「9 除外・上限」で相談中です。</span></div></div>
+        </div>
+      </div>
+      <div class="caption"><span class="stateTag">設定</span>「自動コピー」ペイン（許可済みの状態。許可がないときの表示は「10」）</div>
+    </div>
+    <div>
+      <div class="menu">
+        <div class="mi"><span class="ic">📋</span><span class="t">クリップボード履歴を表示</span><span class="k">⇧⌘V</span></div>
+        <div class="mi hl"><span class="ic">✓</span><span class="t">選択を自動でコピー</span><span class="k"></span></div>
+        <div class="mi"><span class="ic">☕</span><span class="t">スリープを防止</span><span class="k">⌃⌥S</span></div>
+        <div class="sep"></div>
+        <div class="mi"><span class="ic">⚙</span><span class="t">設定…</span><span class="k">⌘,</span></div>
+        <div class="mi"><span class="ic">⏻</span><span class="t">MitsuTools を終了</span><span class="k">⌘Q</span></div>
+      </div>
+      <div class="caption"><span class="stateTag">メニュー</span>メニューに「選択を自動でコピー」を出し、オンオフできる（スリープ防止と同じく、機能がオフでも出して、押したらオンにするかを確認する案）。</div>
+      <div class="card" style="margin-top:14px"><b>機能の状態と動き</b>
+        <table style="margin-top:6px">
+          <tr><th>状態</th><th>動き</th></tr>
+          <tr><td>オフ</td><td>マウスの監視をしない。S0 のまま。</td></tr>
+          <tr><td>オン・許可なし</td><td>動かない（S0 のまま）。ペインの先頭と「一般」で、許可が要ることを知らせる（10）。</td></tr>
+          <tr><td>オン・許可あり</td><td>状態遷移のとおり動く。</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="scope">
+  <h2>9 除外・上限の整理（相談）</h2>
+  <p>クリップボード履歴にも、<b>除外するアプリ</b>と<b>大きさの上限</b>があります。自動コピーの除外・上限と、関心が重なります。</p>
+
+  <h3>いまの状態（履歴のほう）</h3>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th></th><th>クリップボード履歴（作成済み）</th><th>自動コピー（案）</th></tr>
+    <tr><td>除外アプリ</td><td>「記録しないアプリ」。<b>コピーしたときに前面にいるアプリ</b>が対象。初期値は 1Password、Bitwarden、キーチェーンアクセス、パスワード。</td><td>「除外するアプリ」。<b>選択した場所のアプリ</b>が対象。</td></tr>
+    <tr><td>機密データ</td><td>パスワード管理アプリが付ける印（ConcealedType）つきのコピーは、記録しない。</td><td>パスワード欄は、いつも除外。</td></tr>
+    <tr><td>大きさの上限</td><td>1 件 10 MB（設定の項目はなく、固定の値）。件数は設定できる。</td><td>文字数の上限（設定の項目の案）。</td></tr>
+  </table></div>
+
+  <h3>重なっていること・違うこと</h3>
+  <div class="grid2">
+    <div class="card"><b>重なる</b>
+      <ul>
+        <li>パスワード管理アプリなど、<b>機密情報を扱うアプリ</b>は、どちらの機能でも除外したい。</li>
+        <li>大きすぎる内容を、クリップボードに入れたくない。</li>
+      </ul>
+    </div>
+    <div class="card"><b>違う</b>
+      <ul>
+        <li>ターミナルのように、「選択でコピー」を持つアプリは、<b>自動コピーだけ</b>外したい。履歴には残したい。</li>
+        <li>履歴は「ほかのアプリのコピーを記録しない」、自動コピーは「選択に反応しない」。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>整理の案</h3>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>案</th><th>中身</th><th>よい点</th><th>気になる点</th></tr>
+    <tr><td><b>A</b> 共通の 1 リスト</td><td>「一般」に除外リストを 1 つ置き、履歴にも自動コピーにも効かせる。</td><td>1 か所で済む。</td><td>ターミナルを入れると、履歴にも残らなくなる。</td></tr>
+    <tr><td><b>B</b> 機能ごとに別</td><td>今の履歴のリストと、自動コピーのリストを、別々に持つ。</td><td>目的ごとに分けられる。</td><td>パスワード管理アプリを<b>2 か所</b>に登録する。片方を忘れると漏れる（情報漏洩を避ける目的に反する）。</td></tr>
+    <tr class="rec"><td><b>C</b> 共通＋機能ごとの追加 <span class="tag">おすすめ</span></td><td>「一般」の「プライバシー」に、<b>機密情報を扱うアプリ</b>のリストを置き、全機能に効かせる。自動コピーには、<b>追加で除外するアプリ</b>（初期値は空）を置く。</td><td>機密は 1 か所で、全機能に効く（漏れない）。ターミナルなどは、自動コピーだけ外せる。</td><td>リストが 2 種類になる（追加のほうは、必要なときだけ使う）。</td></tr>
+  </table></div>
+
+  <h3>大きさの上限</h3>
+  <div class="card"><ul>
+    <li>設定の項目にせず、<b>固定の値</b>にする案：自動コピーも、履歴と同じ「1 件 10 MB」を上限にする。</li>
+    <li>理由：どちらも、「巨大な内容でメモリを使いすぎない」ための歯止めで、人が細かく調整する値ではない。上限を超えたときは、何もしない。</li>
+    <li>件数（履歴に残す数）は、これまでどおり設定にする。</li>
+  </ul></div>
+
+  <h3>案 C の画面</h3>
+  <div class="grid2">
+    <div>
+      <div class="win"><div class="top"><div class="tls"><i></i><i></i><i></i></div><div><div class="ttl">一般</div>
+        <div class="tabs"><span class="on">一般</span><span>クリップボード</span><span>ウィンドウ</span><span>自動コピー</span></div></div><div></div></div>
+        <div class="form">
+          <div class="gh">プライバシー</div>
+          <div class="gp">
+            <div class="r"><span class="t">機密情報を扱うアプリ<small>クリップボード履歴に記録せず、自動コピーもしません</small></span><span class="pop2">編集… </span></div>
+            <div class="r" style="min-height:30px;font-size:12px"><span class="t muted">1Password ・ Bitwarden ・ キーチェーンアクセス ・ パスワード</span></div>
+            <div class="r"><span class="t">パスワードなどの機密データ（印つき）を記録しない</span><span class="tog"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><span class="stateTag">一般</span>共通のリスト（全機能に効く）</div>
+    </div>
+    <div>
+      <div class="win"><div class="top"><div class="tls"><i></i><i></i><i></i></div><div><div class="ttl">自動コピー</div>
+        <div class="tabs"><span>一般</span><span>クリップボード</span><span>ウィンドウ</span><span class="on">自動コピー</span></div></div><div></div></div>
+        <div class="form">
+          <div class="gh">除外</div>
+          <div class="gp">
+            <div class="r"><span class="t">自動コピーしないアプリ<small>「一般」の機密情報を扱うアプリに加えて、ここでも外せます</small></span><span class="pop2">追加…</span></div>
+            <div class="r" style="min-height:30px;font-size:12px"><span class="t muted">ターミナル</span></div>
+            <div class="r"><span class="t">⌘・⌥・⌃ を押している間は何もしない</span><span class="tog"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption"><span class="stateTag">自動コピー</span>この機能だけの追加分</div>
+    </div>
+  </div>
+</section>
+
+<section id="perm">
+  <h2>10 許可が必要なときの表示（平仄の確認）</h2>
+  <p>OS の許可が前提の機能が、いまの画面でどう見えるかを、コードで調べました。</p>
+
+  <h3>いまの状態（実際のコードから）</h3>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>機能</th><th>必要な許可</th><th>「一般」の権限欄</th><th>機能のペイン</th><th>許可がないときの動き</th></tr>
+    <tr><td>ウィンドウ</td><td>アクセシビリティ</td><td>状態が出る</td><td><b>何も出ない</b></td><td>ショートカットを押すと、macOS の許可ダイアログを出す。操作は実行しない</td></tr>
+    <tr><td>クリップボード</td><td>アクセシビリティ（自動貼り付けだけ）</td><td>状態が出る</td><td><b>何も出ない</b></td><td>履歴の記録・選んだ項目をクリップボードに戻すところまでは動く。貼り付けだけ、<b>黙って</b>しない</td></tr>
+    <tr><td>入力方式</td><td>アクセシビリティ（Spotlight などの検出）</td><td>状態が出る</td><td>下の説明文に「許可が要ります」と書いてある</td><td>ふつうのアプリの切り替えは動く。Spotlight だけ、<b>黙って</b>動かない</td></tr>
+    <tr><td>ブックマーク</td><td>ブラウザのデータフォルダ（ブラウザごと）</td><td>出ない</td><td><b>行ごと</b>に、オレンジの「読み込みが許可されていません」と「フォルダを選んで許可…」</td><td>そのブラウザだけ読み込まない</td></tr>
+    <tr><td>スリープ防止・アプリ起動</td><td>なし</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>起動時</td><td>アクセシビリティ</td><td>—</td><td>—</td><td>オンの機能が許可を必要としていて、許可がなければ、設定の「一般」を開く</td></tr>
+  </table></div>
+
+  <h3>平仄が合っていないところ</h3>
+  <div class="card"><ul>
+    <li><b>機能のペインに許可の状態が出るものと、出ないものが混ざっている</b>（ブックマークは出る。ウィンドウ・クリップボード・入力方式は、出ない／説明文だけ）。</li>
+    <li><b>許可がないときの動きが 3 通り</b>ある：ダイアログを出す（ウィンドウ）／黙ってしない（クリップボード・入力方式）／行に警告を出す（ブックマーク）。</li>
+    <li>「アプリ全体の許可」（アクセシビリティ）と、「項目ごとの許可」（ブックマークのブラウザ）は、種類が違う。後者は、行の中に出すのが自然。</li>
+  </ul></div>
+
+  <h3>案：共通の表示にそろえる</h3>
+  <div class="grid2">
+    <div class="card"><b>ルール</b>
+      <ol style="margin:6px 0;padding-left:20px">
+        <li>アプリ全体の許可（アクセシビリティ）が足りないとき、<b>その機能のペインの先頭</b>に、同じ見た目のバナーを出す。許可済みなら、何も出さない。</li>
+        <li>「一般」の「権限」欄は、これまでどおり、全体の状態の正本として残す。</li>
+        <li>項目ごとの許可（ブックマークのブラウザ）は、これまでどおり、<b>その行の中</b>に出す。</li>
+        <li>機能をオンにした瞬間に、許可が足りなければ、「一般」を開く（起動時と同じ）。</li>
+        <li>許可がなくて動かないときは、<b>黙らない</b>。ユーザーが直接起こした操作（ショートカット）には、同じ文言で知らせる。自動で動く機能（自動コピー・入力方式）は、バナーと「一般」で知らせる（毎回の通知は、うるさいので出さない）。</li>
+      </ol>
+    </div>
+    <div class="card"><b>バナーの見た目</b>
+      <div class="win" style="margin-top:8px"><div class="top"><div class="tls"><i></i><i></i><i></i></div><div><div class="ttl">自動コピー</div></div><div></div></div>
+        <div class="form">
+          <div class="banner"><span class="bi">⚠</span><div class="bt"><b>アクセシビリティの許可が必要です</b><small>選択した範囲の文字を読み取るのに使います。</small></div><span class="btn" style="cursor:default">許可する…</span></div>
+          <div class="gh">クリックの待ち時間</div><div class="gp"><div class="r"><span class="t muted">…（ふだんの設定が続く）</span></div></div>
+        </div>
+      </div>
+      <div class="caption">許可がないときだけ出るバナー。許可すると消える。</div>
+    </div>
+  </div>
+  <p class="muted">この案は、ウィンドウ・クリップボード・入力方式のペインにも、同じバナーを足すことになります（いまのアプリは、まだ変えていません）。</p>
+</section>
+
+<section id="questions">
+  <h2>11 決めたいこと</h2>
+  <div class="card" style="overflow-x:auto">
+  <table>
+    <tr><th>#</th><th>確認したいこと</th><th>案（おすすめ）</th></tr>
+    <tr><td>1</td><td><span class="q">待つ時間（T2・T3）の初期値</span></td><td>システムの「ダブルクリックの間隔」。計測・自動調整で、あとから短くできる。</td></tr>
+    <tr><td>2</td><td><span class="q">自動調整の初期値</span>：オンか、オフか。</td><td>オフ（ほかの機能と同じく、はじめはオフ）。計測だけ、いつでもできる。</td></tr>
+    <tr><td>3</td><td><span class="q">計測のしかた</span>：5 回のトライ、最大値 × 1.3、150〜1000 ms。</td><td>この案。トライの回数と余裕は、固定の値にする（設定にしない）。</td></tr>
+    <tr><td>4</td><td><span class="q">集めた間隔の扱い</span>：メモリ上だけ。</td><td>この案。設定ファイルには、決まった T2・T3 だけ書く。</td></tr>
+    <tr><td>5</td><td><span class="q">除外と上限の整理</span>（9）</td><td>案 C（共通の「機密情報を扱うアプリ」＋自動コピー専用の追加分）。上限は、固定の値（1 件 10 MB）。</td></tr>
+    <tr><td>6</td><td><span class="q">許可の表示のそろえ方</span>（10）</td><td>機能のペインの先頭に、共通のバナー。ウィンドウ・クリップボード・入力方式にも足す。</td></tr>
+    <tr><td>7</td><td><span class="q">選択の読み取り方</span>：Accessibility で読む案は、ブラウザや Electron のアプリで、読み取れないことがある。⌘C を送る案は、確実だが、クリップボードを書き換え、履歴にも影響する。</td><td>Accessibility を使う。読めないアプリは、失敗として扱う。</td></tr>
+    <tr><td>8</td><td><span class="q">ポップアップの位置</span>：最初の行の中央の上。</td><td>最初の行の中央。座標が取れなければマウスの上。</td></tr>
+    <tr><td>9</td><td><span class="q">コピーできなかったとき</span>：失敗ポップアップを出すか。</td><td>初期値は出さない。設定でオンにできる。</td></tr>
+    <tr><td>10</td><td><span class="q">同じ内容をもう一度コピーしたとき</span>：ポップアップを出すか。</td><td>出す。</td></tr>
+    <tr><td>11</td><td><span class="q">修飾キー</span>：⌘・⌥・⌃ を押しながらの操作は、何もしない。⇧クリックでの範囲の拡張は？</td><td>⌘・⌥・⌃ は何もしない。⇧は対象にする。</td></tr>
+    <tr><td>12</td><td><span class="q">クリップボード履歴との関係</span>：自動コピーも、ふつうのコピーと同じく、履歴に残る。</td><td>同じに扱う。区別は付けない。</td></tr>
+  </table>
+  </div>
+  <p class="muted" style="margin-top:8px">決まったこと：設定の状態は、機能のオンオフだけ（どう選ぶかの設定は、なし）。ポップアップの設定は、前の案のまま。</p>
+</section>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+// ---- テーマ
+document.documentElement.dataset.theme = 'light';
+document.querySelectorAll('#theme button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#theme button').forEach(x => x.classList.toggle('on', x === b));
+  document.documentElement.dataset.theme = b.dataset.t;
+});
+
+// ---- 状態遷移図（座標から描く）
+const NODES = {
+  S0:{x:20, y:230,w:130,h:60,c:'idle', a:'S0 待機',        b:'何も出さない'},
+  S1:{x:210,y:230,w:130,h:60,c:'input',a:'S1 押下中',       b:'1 回目'},
+  S2:{x:400,y:230,w:130,h:60,c:'wait', a:'S2 ダブル待ち',   b:'1 回目を離した'},
+  S3:{x:590,y:230,w:130,h:60,c:'input',a:'S3 押下中',       b:'2 回目'},
+  S4:{x:780,y:230,w:130,h:60,c:'wait', a:'S4 トリプル待ち', b:'2 回目を離した'},
+  S5:{x:970,y:230,w:130,h:60,c:'input',a:'S5 押下中',       b:'3 回目'},
+  S6:{x:560,y:70, w:190,h:56,c:'input',a:'S6 ドラッグ中',   b:'押したまま動かす'},
+  S7:{x:380,y:410,w:680,h:56,c:'read', a:'S7 読み取り中',   b:'選択範囲を読んで、コピーするか決める（数十ミリ秒）'},
+  S8:{x:500,y:540,w:200,h:56,c:'ok',   a:'S8 コピー済み',   b:'ポップアップを出す（約 1.2 秒）'},
+  S9:{x:800,y:540,w:200,h:56,c:'ng',   a:'S9 コピーできない',b:'失敗ポップアップ（任意）'},
+};
+(function drawDiagram(){
+  const svg = $('svg'); let out = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--stroke)"/></marker></defs>`;
+  const arrow = (d, cls='') => out += `<path class="edge ${cls}" d="${d}" marker-end="url(#ah)"/>`;
+  const line  = (d, cls='') => out += `<path class="edge ${cls}" d="${d}"/>`;
+  const lab = (x,y,t,anchor='middle',strong=false) => out += `<text class="lab ${strong?'strong':''}" x="${x}" y="${y}" text-anchor="${anchor}">${t}</text>`;
+  const c = n => ({x:NODES[n].x+NODES[n].w/2, y:NODES[n].y+NODES[n].h/2});
+  // 横の連鎖
+  [['S0','S1','押す'],['S1','S2','離す'],['S2','S3','T2 内に押す'],['S3','S4','離す'],['S4','S5','T3 内に押す']].forEach(([a,b,t])=>{
+    const A=NODES[a],B=NODES[b], y=A.y+A.h/2; arrow(`M${A.x+A.w} ${y} L${B.x} ${y}`); lab((A.x+A.w+B.x)/2, y-8, t);
+  });
+  // ドラッグ（動かす）
+  arrow('M275 230 C275 150 400 98 560 98'); lab(330,150,'動かす',"start");
+  arrow('M655 230 L655 126');               lab(662,180,'動かす','start');
+  arrow('M1035 230 C1035 150 900 98 750 98');lab(1000,150,'動かす','end');
+  // 読み取りへ
+  arrow('M465 290 L465 410'); lab(472,345,'T2 経過','start'); lab(472,360,'（単独クリック）','start');
+  arrow('M845 290 L845 410'); lab(852,345,'T3 経過','start'); lab(852,360,'（ダブルで終わる）','start');
+  arrow('M1035 290 L1035 410'); lab(1042,345,'離す','start'); lab(1042,360,'（トリプルで確定）','start');
+  arrow('M655 40 L655 16 L1150 16 L1150 438 L1060 438'); lab(900,11,'離す（ドラッグで確定）','middle');
+  // 読み取りの結果
+  arrow('M600 466 L600 540'); lab(608,500,'選択あり：コピー','start',true);
+  arrow('M900 466 L900 540'); lab(908,500,'読めない','start',true);
+  arrow('M380 438 L85 438 L85 290'); lab(232,430,'選択なし・除外：何もしない','middle',true);
+  // 待機への戻り
+  line('M500 568 L85 568 L85 438'); lab(292,560,'約 1.2 秒後／次のクリックで消える','middle');
+  line('M900 596 L900 640 L85 640 L85 568'); lab(500,632,'約 2 秒後','middle');
+  out += `<circle cx="85" cy="438" r="3.5" fill="var(--stroke)"/><circle cx="85" cy="568" r="3.5" fill="var(--stroke)"/>`;
+  // 取り消し
+  out += `<g><rect x="20" y="330" width="260" height="62" rx="10" fill="none" stroke="var(--stroke)" stroke-dasharray="5 4"/>
+    <text class="lab" x="32" y="350">どの状態でも</text><text class="lab" x="32" y="366">Esc・アプリの切り替え・⌘⌥⌃ の操作で</text><text class="lab" x="32" y="382">S0 に戻る（コピーしない）</text></g>`;
+  for (const [id,n] of Object.entries(NODES)) {
+    out += `<g class="node ${n.c}" data-s="${id}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="12"/>
+      <text class="t1" x="${n.x+n.w/2}" y="${n.y+n.h/2-3}" text-anchor="middle">${n.a}</text>
+      <text class="t2" x="${n.x+n.w/2}" y="${n.y+n.h/2+14}" text-anchor="middle">${n.b}</text></g>`;
+  }
+  svg.innerHTML = out;
+})();
+
+// ---- 試せる動作：状態機械
+const NAME = {S0:'S0 待機',S1:'S1 1回目 押下中',S2:'S2 ダブル待ち',S3:'S3 2回目 押下中',S4:'S4 トリプル待ち',S5:'S5 3回目 押下中',S6:'S6 ドラッグ中',S7:'S7 読み取り中',S8:'S8 コピー済み',S9:'S9 コピーできない'};
+const KIND = {S0:'',S1:'input',S2:'wait',S3:'input',S4:'wait',S5:'input',S6:'input',S7:'read',S8:'ok',S9:'ng'};
+let state = 'S0', timer = null, popTimer = null, downPos = null, area = null, t0 = performance.now(), copies = 0, popupEl = null;
+const T2 = () => +$('tT2').value, T3 = () => +$('tT3').value, POP = () => +$('tP').value;
+$('tT2').oninput = () => $('tT2v').textContent = T2() + ' ms';
+$('tT3').oninput = () => $('tT3v').textContent = T3() + ' ms';
+$('tP').oninput = () => $('tPv').textContent = (POP()/1000).toFixed(1) + ' 秒';
+document.querySelectorAll('#popContent button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#popContent button').forEach(x => x.classList.toggle('on', x === b));
+});
+const popMode = () => document.querySelector('#popContent .on').dataset.v;
+
+function log(msg, cls='') {
+  const el = document.createElement('div'); if (cls) el.className = cls;
+  el.textContent = String(Math.round(performance.now() - t0)).padStart(6) + ' ms  ' + msg;
+  $('log').appendChild(el); $('log').scrollTop = 1e6;
+}
+function setState(s, note='') {
+  const from = state; state = s;
+  $('pill').textContent = NAME[s]; $('pill').className = 'pill ' + KIND[s]; $('pillNote').textContent = note;
+  document.querySelectorAll('.node').forEach(n => n.classList.toggle('on', n.dataset.s === s));
+  if (from !== s) log(`${from} → ${s}${note ? '  ' + note : ''}`, 'dim');
+}
+setState('S0');
+
+function hidePopup() { clearTimeout(popTimer); if (popupEl) { popupEl.remove(); popupEl = null; } }
+function showPopup(rect, kind, count) {
+  hidePopup();
+  const el = document.createElement('div'); el.className = 'pop fixed' + (kind === 'ng' ? ' ng' : '');
+  const sub = kind === 'ng' ? '<small>このアプリでは選択を読み取れません</small>' : (popMode() === 'count' ? `<small>${count} 文字</small>` : '');
+  el.innerHTML = `<span class="ck">${kind === 'ng' ? '!' : '✓'}</span>${kind === 'ng' ? 'コピーできませんでした' : 'コピーしました'} ${sub}`;
+  document.body.appendChild(el);
+  const h = el.offsetHeight; let top = rect.top - h - 8;
+  if (top < 8) top = rect.bottom + 8;                         // 上に出せなければ下へ
+  el.style.left = Math.min(Math.max(rect.left + rect.width / 2, 80), innerWidth - 80) + 'px'; el.style.top = top + 'px';
+  popupEl = el;
+}
+
+function commit(why) {
+  clearTimeout(timer);
+  setState('S7', why);
+  setTimeout(() => {
+    const sel = getSelection(), text = sel.toString().trim();
+    if (!text || !sel.rangeCount) { setState('S0', '選択なし：何もしない'); return; }
+    if (area && area.dataset.secure) { setState('S0', 'パスワード欄：除外'); return; }
+    const rects = sel.getRangeAt(0).getClientRects(), rect = rects[0] || sel.getRangeAt(0).getBoundingClientRect();
+    if (area && area.dataset.unreadable) {
+      setState('S9', '読み取れない'); showPopup(rect, 'ng');
+      popTimer = setTimeout(() => { hidePopup(); setState('S0'); }, Math.max(POP(), 1500)); return;
+    }
+    copies++; $('copyCount').textContent = copies;
+    $('clip').textContent = text; log(`クリップボードに書いた（${why}）：「${text.length > 30 ? text.slice(0, 30) + '…' : text}」`, 'copy');
+    setState('S8', 'コピーした'); showPopup(rect, 'ok', text.length);
+    popTimer = setTimeout(() => { hidePopup(); setState('S0'); }, POP());
+  }, 30);
+}
+
+document.querySelectorAll('.demo').forEach(d => {
+  d.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.target.tagName === 'INPUT' && false) return;
+    clearTimeout(timer); hidePopup(); area = d; downPos = { x: e.clientX, y: e.clientY };
+    if (state === 'S2') setState('S3', 'T2 以内に押した');
+    else if (state === 'S4') setState('S5', 'T3 以内に押した');
+    else { if (state !== 'S0') log('（前の操作を打ち切って、最初から）', 'dim'); setState('S1'); }
+  });
+});
+addEventListener('mousemove', e => {
+  if (['S1', 'S3', 'S5'].includes(state) && downPos && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) >= 4) setState('S6', '動かした');
+});
+addEventListener('mouseup', e => {
+  if (e.button !== 0) return;
+  if (state === 'S1') { setState('S2', `T2 = ${T2()} ms 待つ`); timer = setTimeout(() => commit('T2 経過：単独クリック'), T2()); }
+  else if (state === 'S3') { setState('S4', `T3 = ${T3()} ms 待つ`); timer = setTimeout(() => commit('T3 経過：ダブルクリックで終わった'), T3()); }
+  else if (state === 'S5') commit('トリプルクリック');
+  else if (state === 'S6') commit('ドラッグ');
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && state !== 'S0') { clearTimeout(timer); hidePopup(); setState('S0', 'Esc で取り消し'); } });
+$('clear').onclick = () => { $('log').innerHTML = ''; copies = 0; $('copyCount').textContent = 0; $('clip').innerHTML = '<span class="muted">（空）</span>'; };
+
+// ---- 計測の状態遷移図
+(function(){
+  const N={M0:[20,40,'M0 計測していない','ふだんの状態'],M1:[270,40,'M1 トライ待ち','k / N 回目・1 回目を待つ'],M2:[520,40,'M2 トライ中','クリックを記録'],M3:[770,40,'M3 結果','間隔とおすすめの値']};
+  let o='<defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--stroke)"/></marker></defs>';
+  const edge=(d)=>o+=`<path class="edge" d="${d}" marker-end="url(#ah2)"/>`; const lab=(x,y,t,a='middle')=>o+=`<text class="lab" x="${x}" y="${y}" text-anchor="${a}">${t}</text>`;
+  edge('M210 70 L270 70'); lab(240,60,'始める');
+  edge('M460 70 L520 70'); lab(490,60,'1 回目');
+  edge('M710 70 L770 70'); lab(740,60,'k = N');
+  edge('M615 40 C615 -26 365 -26 365 40'); lab(490,-10,'3 回押した（k < N）／時間切れ（やり直し）');
+  edge('M365 100 C365 160 115 160 115 100'); lab(240,158,'キャンセル');
+  edge('M800 100 C800 190 420 190 420 100'); lab(610,184,'やり直す');
+  edge('M865 100 C865 235 150 235 150 100'); lab(508,228,'この値を使う／閉じる');
+  for(const [id,[x,y,a,b]] of Object.entries(N)){
+    const c={M0:'idle',M1:'wait',M2:'input',M3:'read'}[id];
+    o+=`<g class="node ${c}" data-m="${id}"><rect x="${x}" y="${y}" width="190" height="60" rx="12"/><text class="t1" x="${x+95}" y="${y+27}" text-anchor="middle">${a}</text><text class="t2" x="${x+95}" y="${y+44}" text-anchor="middle">${b}</text></g>`;
+  }
+  document.getElementById('msvg').innerHTML=o;
+})();
+
+// ---- 試せる計測
+const MN={M0:'M0 計測していない',M1:'M1 トライ待ち',M2:'M2 トライ中',M3:'M3 結果'}, MK={M0:'',M1:'wait',M2:'input',M3:'read'};
+let mS='M0',mTrial=0,mClicks=[],mG12=[],mG23=[],mTimer=null; const MAXTRIAL=5;
+function mSet(s,note=''){mS=s;$('mpill').textContent=MN[s];$('mpill').className='pill '+MK[s];$('mnote').textContent=note;
+  document.querySelectorAll('#msvg .node').forEach(n=>n.classList.toggle('on',n.dataset.m===s));
+  $('mbox').classList.toggle('armed',s==='M1'||s==='M2');
+  const big=$('mbigtext'),sub=$('msub');
+  if(s==='M0'){big.textContent='「計測を始める」を押してください';sub.textContent='';}
+  if(s==='M1'){big.textContent='素早く、3 回続けてクリック';sub.textContent=`トライ ${mTrial+1} / ${MAXTRIAL}`;}
+  if(s==='M2'){big.textContent='●'.repeat(mClicks.length)+'○'.repeat(3-mClicks.length);sub.textContent=`クリック ${mClicks.length} 回（あと ${3-mClicks.length} 回）`;}
+  if(s==='M3'){big.textContent='計測が終わりました';sub.textContent='右に結果が出ています';}
+  $('muse').disabled=$('mretry').disabled=$('mclose').disabled=(s!=='M3');
+}
+const clampT=v=>Math.min(1000,Math.max(150,Math.round(v*1.3/10)*10));
+function mResult(){
+  const r2=clampT(Math.max(...mG12)),r3=clampT(Math.max(...mG23));
+  $('mres').innerHTML=`<div>g12（ダブル）：${mG12.map(v=>Math.round(v)).join(' ・ ')}　→ 最大 <b>${Math.round(Math.max(...mG12))}</b></div>
+   <div>g23（トリプル）：${mG23.map(v=>Math.round(v)).join(' ・ ')}　→ 最大 <b>${Math.round(Math.max(...mG23))}</b></div>
+   <div style="margin-top:6px">おすすめ　T2 = <b>${r2} ms</b>　T3 = <b>${r3} ms</b></div>`;
+  $('muse').dataset.t2=r2;$('muse').dataset.t3=r3;
+}
+$('mstart').onclick=()=>{mTrial=0;mClicks=[];mG12=[];mG23=[];$('mres').innerHTML='<span class="muted">（計測中…）</span>';mSet('M1');};
+$('mcancel').onclick=()=>{clearTimeout(mTimer);mClicks=[];mSet('M0','キャンセル');};
+$('mretry').onclick=()=>$('mstart').click();
+$('mclose').onclick=()=>mSet('M0');
+$('muse').onclick=()=>{ $('tT2').value=$('muse').dataset.t2; $('tT3').value=$('muse').dataset.t3; $('tT2').oninput(); $('tT3').oninput(); mSet('M0','T2・T3 に反映しました'); };
+$('mbox').addEventListener('mousedown',e=>{
+  if(e.button!==0||(mS!=='M1'&&mS!=='M2'))return; e.preventDefault();
+  clearTimeout(mTimer); mClicks.push(e.timeStamp);
+  if(mClicks.length===3){ mG12.push(mClicks[1]-mClicks[0]); mG23.push(mClicks[2]-mClicks[1]); mClicks=[]; mTrial++; if(mTrial>=MAXTRIAL){mResult();mSet('M3');} else mSet('M1',`トライ ${mTrial} 回目 OK`); return; }
+  mSet('M2'); mTimer=setTimeout(()=>{mClicks=[];mSet('M1','3 回続けてクリックしてください（やり直し）');},1200);
+});
+</script>
+</body>
+</html>

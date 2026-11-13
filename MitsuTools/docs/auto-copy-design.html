@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自動コピーの設計</title>
+<style>
+:root{
+  --page:#f2f2f7; --window:#ececec; --content:#fff; --group:rgba(0,0,0,.035); --sep:rgba(0,0,0,.09);
+  --label:rgba(0,0,0,.88); --label2:rgba(0,0,0,.52); --label3:rgba(0,0,0,.25);
+  --fill:rgba(0,0,0,.06); --fill2:rgba(0,0,0,.1); --accent:#0088ff; --green:#30b650; --orange:#ff9500;
+  --sel:rgba(0,136,255,.28);
+  --glass:rgba(255,255,255,.62); --glass-edge:rgba(255,255,255,.8); --shadow:0 10px 30px rgba(0,0,0,.2),0 1px 4px rgba(0,0,0,.1);
+  --n-idle:#e5e5ea; --n-op:#e8f1ff; --n-wait:#fff1d6; --n-read:#e4e2ff; --n-ok:#dcf5e3; --stroke:rgba(0,0,0,.35);
+}
+:root[data-theme="dark"]{
+  --page:#000; --window:#262626; --content:#1c1c1e; --group:rgba(255,255,255,.05); --sep:rgba(255,255,255,.09);
+  --label:rgba(255,255,255,.9); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.28);
+  --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14); --accent:#0a91ff; --sel:rgba(10,145,255,.4);
+  --glass:rgba(60,60,64,.6); --glass-edge:rgba(255,255,255,.2); --shadow:0 10px 30px rgba(0,0,0,.5),0 1px 4px rgba(0,0,0,.4);
+  --n-idle:#3a3a3c; --n-op:#1d3350; --n-wait:#4a3a14; --n-read:#2d2a58; --n-ok:#1d4a2a; --stroke:rgba(255,255,255,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--label);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+header{max-width:1200px;margin:auto;padding:24px 20px 4px}
+h1{font-size:24px;margin:0 0 6px}
+.lead{color:var(--label2);margin:0;max-width:860px}
+.one{font-size:17px;font-weight:700;margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--content);box-shadow:0 0 0 .5px var(--sep);display:inline-block}
+nav{max-width:1200px;margin:14px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+nav a{color:var(--label);text-decoration:none;background:var(--fill);padding:4px 12px;border-radius:999px;font-size:13px}
+.seg{margin-left:auto;display:inline-flex;padding:3px;border-radius:999px;background:var(--fill);gap:2px}
+.seg button{border:0;background:transparent;color:var(--label);font:inherit;font-size:13px;padding:3px 12px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--content);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+main{max-width:1200px;margin:auto;padding:8px 20px 70px}
+section{margin-top:34px}
+h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--sep)}
+h3{font-size:15px;margin:18px 0 6px}
+p{margin:6px 0}
+.card{background:var(--content);border-radius:16px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--sep);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--label2);font-weight:600;white-space:nowrap}
+code,kbd{font:12px ui-monospace,Menlo,monospace;background:var(--fill);padding:1px 6px;border-radius:5px}
+.tag{display:inline-block;font-size:11px;padding:0 8px;border-radius:999px;background:var(--fill2);color:var(--label2);white-space:nowrap}
+.muted{color:var(--label2)}
+ul,ol{margin:6px 0;padding-left:20px} li{margin:3px 0}
+.yes{color:var(--green);font-weight:700}.no{color:var(--label2);font-weight:700}
+.diagram{overflow-x:auto;background:var(--content);border-radius:16px;box-shadow:0 0 0 .5px var(--sep);padding:10px}
+svg text{font-family:-apple-system,"Hiragino Sans",sans-serif;fill:var(--label)}
+svg .node rect{stroke:var(--stroke);stroke-width:1.2}
+svg .node.idle rect{fill:var(--n-idle)} svg .node.op rect{fill:var(--n-op)} svg .node.wait rect{fill:var(--n-wait)}
+svg .node.read rect{fill:var(--n-read)} svg .node.ok rect{fill:var(--n-ok)}
+svg .node.on rect{stroke:var(--accent);stroke-width:4}
+svg .node .t1{font-size:14px;font-weight:700} svg .node .t2{font-size:11px;fill:var(--label2)}
+svg .edge{fill:none;stroke:var(--stroke);stroke-width:1.5}
+svg .lab{font-size:11.5px;fill:var(--label2)} svg .lab.b{fill:var(--label);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--label2);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px;box-shadow:inset 0 0 0 1px var(--stroke)}
+/* ポップアップ */
+.pop{position:absolute;z-index:50;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;pointer-events:none;
+  padding:6px 14px 6px 10px;border-radius:999px;font-size:13px;font-weight:600;color:var(--label);
+  background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.8);backdrop-filter:blur(18px) saturate(1.8);
+  box-shadow:var(--shadow),inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-edge)}
+.pop .ck{width:18px;height:18px;border-radius:50%;background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.pop small{font-weight:500;color:var(--label2);font-size:12px}
+.pop.above{bottom:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+.pop.below{top:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+.pop.fixed{position:fixed;transform:translateX(-50%)}
+/* 画面の模型 */
+.mock{position:relative;border-radius:12px;background:var(--content);box-shadow:0 0 0 .5px var(--sep),0 4px 14px rgba(0,0,0,.08)}
+.mock .bar{height:24px;border-radius:12px 12px 0 0;background:var(--window);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:var(--label2)}
+.mock .bar i{width:9px;height:9px;border-radius:50%;background:var(--fill2);display:inline-block}.mock .bar i:first-child{background:#ff5f57}
+.mock .body{padding:44px 16px 16px;line-height:26px}.mock .body.tight{padding-top:12px}
+.sel{background:var(--sel);border-radius:3px;position:relative}
+.caption{font-size:12px;color:var(--label2);margin:6px 2px 0}
+.st{display:inline-block;font-size:11px;font-weight:700;background:var(--fill2);border-radius:6px;padding:0 7px;margin-right:6px}
+/* 試せる動作 */
+.sim{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+@media (max-width:920px){.sim{grid-template-columns:1fr}}
+.area{position:relative;padding:12px 14px;border-radius:12px;background:var(--content);box-shadow:0 0 0 .5px var(--sep);margin-bottom:10px;line-height:28px}
+.area h4{margin:0 0 4px;font-size:12px;color:var(--label2);font-weight:600;line-height:1.4}
+.area p{margin:0}
+.field{font:inherit;font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--sep);background:var(--content);color:var(--label);width:100%}
+textarea.field{height:64px;resize:vertical;line-height:1.5}
+.row{display:flex;gap:8px;align-items:center;margin:4px 0}
+.row label{font-size:12px;color:var(--label2);width:88px;flex:none}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.pill{font-weight:700;padding:2px 12px;border-radius:999px;background:var(--fill2)}
+.pill.op{background:var(--n-op)}.pill.wait{background:var(--n-wait)}.pill.read{background:var(--n-read)}.pill.ok{background:var(--n-ok)}
+.box{padding:8px 12px;border-radius:10px;background:var(--fill);font-size:13px;word-break:break-all}
+.log{height:220px;overflow:auto;background:var(--fill);border-radius:10px;padding:6px 10px;font:12px/1.7 ui-monospace,Menlo,monospace}
+.log .copy{color:var(--green);font-weight:700}.log .dim{color:var(--label2)}.log .skip{color:var(--orange)}
+.ctl{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:13px;margin:8px 0}
+.ctl label{display:flex;align-items:center;gap:6px}
+input[type=range],input[type=checkbox]{accent-color:var(--accent)}
+.steps{font-size:13px;margin:6px 0 0;padding-left:18px}
+/* 設定 */
+.win{border-radius:22px;background:var(--window);box-shadow:0 18px 50px rgba(0,0,0,.22),0 0 0 .5px var(--sep);overflow:hidden}
+.win .top{padding:10px 14px 4px;display:grid;grid-template-columns:60px 1fr 60px}
+.win .tls{display:flex;gap:6px;padding-top:3px}.win .tls i{width:11px;height:11px;border-radius:50%;background:var(--fill2)}.win .tls i:first-child{background:#ff5f57}
+.win .ttl{text-align:center;font-weight:600;font-size:13px}
+.form{padding:2px 16px 16px}
+.gh{font-size:12px;font-weight:600;color:var(--label2);margin:14px 4px 6px}
+.gp{background:var(--group);border-radius:10px;padding:0 12px;box-shadow:0 0 0 .5px var(--sep)}
+.r{display:flex;align-items:center;gap:10px;min-height:38px;border-bottom:1px solid var(--sep);font-size:13px}
+.r:last-child{border-bottom:0}.r .t{flex:1}.r .t small{display:block;color:var(--label2);font-size:11px}
+.tog{width:36px;height:21px;border-radius:999px;background:var(--green);position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:2px;left:17px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tog.off{background:var(--fill2)}.tog.off::after{left:2px}
+.chip{font-size:12px;background:var(--content);border-radius:6px;padding:2px 8px;box-shadow:0 0 0 .5px var(--sep)}
+.segs{display:inline-flex;background:var(--fill);border-radius:7px;padding:2px}.segs span{font-size:12px;padding:1px 10px;border-radius:5px}.segs span.on{background:var(--content);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--orange) 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 45%,transparent);margin:8px 0 2px}
+.banner .bi{font-size:18px;color:var(--orange)}.banner .bt{flex:1;font-size:13px;line-height:1.4}.banner .bt small{display:block;color:var(--label2);font-size:11px}
+.btn{display:inline-block;border:0;border-radius:999px;font:inherit;font-size:12px;padding:3px 12px;background:var(--accent);color:#fff}
+.menu{width:270px;border-radius:12px;padding:5px;background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);box-shadow:var(--shadow),inset 0 0 0 .5px var(--glass-edge);font-size:13px}
+.menu .mi{display:flex;gap:8px;align-items:center;padding:4px 9px;border-radius:7px;height:26px}.menu .mi .ic{width:16px;text-align:center}.menu .mi .t{flex:1}.menu .mi .k{color:var(--label2)}
+.menu .mi.hl{background:var(--accent);color:#fff}.menu .sep{height:1px;background:var(--sep);margin:5px 10px}
+tr.new td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>選択範囲の自動コピー：設計（作り直し）</h1>
+  <p class="lead">前の案（<a href="auto-copy-states.html">auto-copy-states.html</a>）は、クリックの回数ごとに状態を分けていました。今回は、要望を「例」と「求めていること」に分け直して、選び方によらない形で組み直しました。</p>
+  <div class="one">意図して選んだ範囲を、<u>選び終えた時点</u>で 1 回だけコピーする。</div>
+</header>
+<nav>
+  <a href="#need">1 求めていること</a><a href="#core">2 設計の核</a><a href="#states">3 状態と遷移</a><a href="#cases">4 場面ごとの結果</a>
+  <a href="#try">5 試せる動作</a><a href="#ui">6 状態ごとの UI</a><a href="#wait">7 待ち時間と自動調整</a><a href="#settings">8 設定とメニュー</a>
+  <a href="#safety">9 安全のための決まり</a><a href="#perm">10 許可の表示</a><a href="#diff">11 前の案との違い</a><a href="#ask">12 決めたいこと</a>
+  <div class="seg" id="theme"><button data-t="light" class="on">ライト</button><button data-t="dark">ダーク</button></div>
+</nav>
+<main>
+
+<section id="need">
+  <h2>1 求めていることと、例の切り分け</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>いただいた言葉</th><th>これは例か</th><th>求めていること</th></tr>
+    <tr><td>選択範囲を自動でクリップボードにコピーしたい</td><td>要件</td><td>選んだら、⌘C を押さなくてもコピーされる。</td></tr>
+    <tr><td>トリプルクリックの途中で、シングル・ダブルクリックの選択が起きる。そのときは、トリプルクリックの範囲だけをコピーしたい</td><td><b>例</b></td><td><b>選んでいる途中の選択は、コピーしない。選び終えた時点の選択だけをコピーする。</b>トリプルクリックは、その分かりやすい一例。</td></tr>
+    <tr><td>ダブルクリックで終わったら、ダブルクリックの範囲だけ</td><td><b>例</b></td><td>同上。どこで選び終えても、そのときの選択がコピーされる。</td></tr>
+    <tr><td>どのように選択するかには、興味がない</td><td>要件</td><td>選び方（ドラッグ・ダブル・トリプル・キーボード）で動きを変えない。選び方の設定も置かない。</td></tr>
+    <tr><td>コピーした範囲の少し上に「コピーしました」</td><td>要件</td><td>コピーされたことを、その場で確かめられる。</td></tr>
+    <tr><td>待ち時間を設定で調整したい／自動調整したいので、計測できるように</td><td>手段</td><td>待ちを感じないこと。自分の速さに、手間なく合っていること。計測は、自動調整のための手段。</td></tr>
+    <tr><td>（このツール群の出発点）情報漏洩が心配</td><td>背景</td><td>選んだだけで機密が外に出ない。自動で動く機能ほど、安全側に倒す。</td></tr>
+  </table></div>
+</section>
+
+<section id="core">
+  <h2>2 設計の核：「意図した選択」が「確定」したらコピー</h2>
+  <div class="grid2">
+    <div class="card"><b>確定：選び終えた</b>
+      <ul>
+        <li>ボタン・キーを離していて、<b>選択がもう続かない</b>とわかった時点。</li>
+        <li>続く可能性があるのは、マルチクリックの途中（離してから少しの間、同じ場所でもう一度押されるかもしれない）だけ。その間だけ待つ（<b>W</b>）。</li>
+        <li>続かないことが先にわかれば、待たずに確定：ドラッグして離した、3 回目のクリック、マウスが離れた、キーを押した、アプリを切り替えた。</li>
+      </ul>
+    </div>
+    <div class="card"><b>意図した選択：人が選んだ</b>
+      <ul>
+        <li>ドラッグ、ダブル・トリプルクリック、⇧＋クリック、⇧＋移動キー、⌘A で<b>人が作った選択</b>だけを対象にする。</li>
+        <li>アプリが勝手に作った選択は対象外：アドレスバーを 1 回クリックしたときの全選択、tab で欄に入ったときの全選択、名前の変更欄の全選択など。</li>
+        <li>これを入れないと、フォームを tab で移るだけで、欄の中身が次々にコピーされてしまう（機密の流出につながる）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="states">
+  <h2>3 状態と遷移</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>ID</th><th>状態</th><th>意味</th><th>表示</th></tr>
+    <tr><td><code>Q0</code></td><td><b>待機</b></td><td>選択の操作をしていない。選択だけが変わっても（フォーカスで全選択など）、何もしない。</td><td>なし</td></tr>
+    <tr><td><code>Q1</code></td><td><b>選択操作中</b></td><td>ボタンを押している／⇧を押しながら移動キーを使っている。選択はまだ変わる。</td><td>なし</td></tr>
+    <tr><td><code>Q2</code></td><td><b>続きを待つ</b></td><td>クリックを離した（1・2 回目）。W の間、同じ場所での次のクリックを待つ。</td><td>なし</td></tr>
+    <tr><td><code>Q3</code></td><td><b>判定</b></td><td>選び終えた。意図した選択か、コピーしてよいかを決める（数十ミリ秒）。</td><td>なし</td></tr>
+    <tr><td><code>Q4</code></td><td><b>コピー済み</b></td><td>クリップボードに書いた。</td><td>「コピーしました」約 1.2 秒</td></tr>
+  </table></div>
+  <div class="diagram" style="margin-top:12px"><svg id="svg" viewBox="0 -64 1040 560" style="display:block;width:100%;min-width:860px;height:auto" role="img" aria-label="状態遷移図"></svg></div>
+  <div class="legend">
+    <span><i style="background:var(--n-idle)"></i>待機</span><span><i style="background:var(--n-op)"></i>選択操作中</span><span><i style="background:var(--n-wait)"></i>続きを待つ（W）</span>
+    <span><i style="background:var(--n-read)"></i>判定</span><span><i style="background:var(--n-ok)"></i>コピー済み</span>
+    <span><b style="color:var(--accent)">青い太枠</b>＝「5 試せる動作」の現在の状態</span>
+  </div>
+  <h3>Q3 でコピーする条件（すべて満たすとき）</h3>
+  <div class="card"><ol>
+    <li><b>意図した選択</b>：1 回のクリックだけ（⇧なし・ドラッグなし）でできた選択ではない。</li>
+    <li>空ではない。</li>
+    <li>パスワード欄ではない。除外アプリではない。大きさの上限以内。</li>
+    <li><b>直前に自動コピーした内容と、同じ場所の同じ選択ではない</b>（選択の中をクリックした、ドラッグで移動しようとした、などで何度もコピーしない）。</li>
+  </ol></div>
+</section>
+
+<section id="cases">
+  <h2>4 場面ごとの結果</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>場面</th><th>状態の流れ</th><th>コピー</th></tr>
+    <tr><td>ドラッグで選ぶ</td><td>Q0 → Q1 → <b>離した時点で確定</b> → Q3 → Q4</td><td class="yes">選んだ範囲（すぐ）</td></tr>
+    <tr><td>ダブルクリックで単語</td><td>Q0 → Q1 → Q2 → Q1 → Q2 →（W 経過 か マウスを動かす）→ Q3 → Q4</td><td class="yes">単語（W 後。動かせばすぐ）</td></tr>
+    <tr><td>トリプルクリックで行</td><td>Q0 → Q1 → Q2 → Q1 → Q2 → Q1 → <b>3 回目で確定</b> → Q3 → Q4</td><td class="yes">行だけ（途中の単語は書かない）</td></tr>
+    <tr><td>⇧＋クリックで範囲を広げる</td><td>Q0 → Q1 → Q2 → W 経過 → Q3 → Q4</td><td class="yes">広げた範囲</td></tr>
+    <tr><td>⇧＋矢印で選ぶ</td><td>Q0 → Q1 →（⇧を離す）→ Q3 → Q4</td><td class="yes">選んだ範囲</td></tr>
+    <tr><td>⌘A</td><td>Q0 → Q1 → Q3 → Q4</td><td class="yes">すべて（上限以内なら）</td></tr>
+    <tr><td>アドレスバーを 1 回クリック（全選択される）</td><td>Q0 → Q1 → Q2 → W 経過 → Q3 → <b>意図しない選択</b> → Q0</td><td class="no">しない</td></tr>
+    <tr><td>tab で欄に入る（全選択される）</td><td>Q0 のまま（選択だけが変わった → 無視）</td><td class="no">しない</td></tr>
+    <tr><td>選択の中をクリック・選択した文字をドラッグで移動</td><td>… → Q3 → <b>直前と同じ</b> → Q0</td><td class="no">しない</td></tr>
+    <tr><td>パスワード欄</td><td>… → Q3 → 除外 → Q0</td><td class="no">しない</td></tr>
+  </table></div>
+</section>
+
+<section id="try">
+  <h2>5 試せる動作</h2>
+  <p class="muted">実際に選んでみてください（マウスでもキーボードでも）。右に、状態・クリップボード（模擬）・ログが出ます。上の遷移図も光ります。</p>
+  <div class="ctl">
+    <label>W（続きを待つ時間）<input type="range" id="w" min="120" max="500" step="10" value="500"> <b id="wv">500 ms</b></label>
+    <label><input type="checkbox" id="auto"> 自動調整（ここでのクリックから学ぶ）</label>
+    <span class="muted" id="learn">学習：0 件</span>
+    <label><input type="checkbox" id="protect" checked> 置き換え貼り付けの保護</label>
+  </div>
+  <div class="sim">
+    <div id="play">
+      <div class="area"><h4>文章（ドラッグ・ダブル・トリプル・⇧＋クリック）</h4>
+        <p>MitsuTools はメニューバーに常駐します。</p>
+        <p>選び終えた範囲を、自動でクリップボードにコピーします。</p>
+      </div>
+      <div class="area"><h4>ブラウザのアドレスバー（1 回クリックで全選択される）</h4>
+        <input class="field" id="addr" value="https://mitsutools.spleeing.com/downloads/MitsuTools.zip">
+      </div>
+      <div class="area"><h4>フォーム（tab で移ると全選択される）・パスワード欄</h4>
+        <div class="row"><label>氏名</label><input class="field" value="山田 太郎"></div>
+        <div class="row"><label>カード番号</label><input class="field" value="4242 4242 4242 4242"></div>
+        <div class="row"><label>パスワード</label><input class="field" type="password" value="correct-horse-battery"></div>
+      </div>
+      <div class="area"><h4>エディタ（⇧＋矢印、⌘A、⌘C、⌘V を試せる）</h4>
+        <textarea class="field" id="ed">選択して置き換える例：この「古い言葉」を、別の場所で ⌘C した言葉に置き換える。</textarea>
+        <ol class="steps muted"><li>上の文章の「メニューバー」をダブルクリック（自動コピーされる）。</li><li>エディタの「古い言葉」をドラッグで選ぶ（これも自動コピーされる）。</li><li>⌘V を押す。保護がオンなら「メニューバー」で置き換わる。オフなら「古い言葉」のまま変わらない。</li></ol>
+      </div>
+    </div>
+    <div>
+      <div class="status"><span class="muted">いまの状態</span><span class="pill" id="pill">Q0 待機</span><span class="muted" id="note"></span></div>
+      <div class="muted" style="font-size:12px;margin-bottom:4px">クリップボード（模擬）</div>
+      <div class="box" id="clip"><span class="muted">（空）</span></div>
+      <div class="muted" style="font-size:12px;margin:10px 0 4px">ログ <span class="tag">自動コピー <b id="cnt">0</b> 回</span></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</section>
+
+<section id="ui">
+  <h2>6 状態ごとの UI</h2>
+  <div class="grid2">
+    <div class="card"><b>Q0〜Q3：何も出さない</b><p class="muted" style="margin:4px 0 0">選んでいる途中や、続きを待つ間に何かを出すと、ダブル・トリプルクリックのたびにちらつく。判定は数十ミリ秒で終わるので、出すものがない。</p></div>
+    <div class="card"><b>コピーしないとき：何も出さない</b><p class="muted" style="margin:4px 0 0">意図しない選択・除外・同じ内容・読み取れないときは、通知を出さない。自動で動く機能が、そのたびに話しかけてこないようにする。</p></div>
+  </div>
+  <h3>Q4：コピー済み</h3>
+  <p class="muted">選択範囲の最初の行の、中央のすぐ上。クリックは通り抜ける。約 1.2 秒で消える。次の操作を始めたら、すぐ消える。</p>
+  <div class="grid3">
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body">
+      <div>MitsuTools はメニューバーに常駐します。</div>
+      <div>選び終えた範囲を、自動で<span class="sel">クリップボード<span class="pop above"><span class="ck">✓</span>コピーしました</span></span>にコピーします。</div>
+    </div></div><div class="caption"><span class="st">Q4</span>ふつう：選択の上</div></div>
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>メモ</div><div class="body tight">
+      <div><span class="sel">画面の上の端に近い選択<span class="pop below"><span class="ck">✓</span>コピーしました</span></span>は、下に出します。</div><div>2 行目の文章です。</div>
+    </div></div><div class="caption"><span class="st">Q4</span>上に余白がないとき：下に出す</div></div>
+    <div><div class="mock"><div class="bar"><i></i><i></i><i></i>ほかのアプリ</div><div class="body">
+      <div>選択の位置が<span class="sel">わからないアプリ</span>では、</div><div style="position:relative">マウスの位置の上に出します。<span class="pop" style="left:48%;top:-34px;transform:translateX(-50%)"><span class="ck">✓</span>コピーしました</span><span style="position:absolute;left:46%;top:2px">➚</span></div>
+    </div></div><div class="caption"><span class="st">Q4</span>選択の座標が取れないとき：マウスの上</div></div>
+  </div>
+  <p class="muted" style="margin-top:10px">置き換え貼り付けの保護が働いたときも、通知は出しません（ふつうに貼り付いたように見えるのが、期待どおりの動きなので）。</p>
+</section>
+
+<section id="wait">
+  <h2>7 待ち時間と自動調整</h2>
+  <div class="grid2">
+    <div class="card"><b>待つのは 1 か所だけ</b>
+      <ul>
+        <li>待ちが要るのは、Q2（クリックを離したあと、同じ場所でもう一度押されるか）だけ。待ち時間は <b>W</b> の 1 つで足りる。</li>
+        <li>1 回目のあとの待ちは、ふだんは効かない：1 回のクリックでは、意図した選択ができないので、待っても待たなくても結果は同じ（⇧＋クリックのときだけ効く）。</li>
+        <li>ダブル用・トリプル用の 2 つに分けても、調整する人には違いがわかりにくい。計測の内訳では、2 つを分けて見せる。</li>
+        <li><b>上限は、システムの「ダブルクリックの間隔」</b>。それより遅い次のクリックは、アプリがトリプルクリックと見なさないので、待っても意味がない。</li>
+      </ul>
+    </div>
+    <div class="card"><b>計測と自動調整</b>
+      <ul>
+        <li>計測は、<b>ふだんの操作の中で</b>行う。専用の計測画面はいらない。</li>
+        <li>測るのは、<b>離してから、次に押すまで</b>の時間（実際に待っている区間）。マルチクリックが続いたときだけ、1 件として記録する。</li>
+        <li>W ＝ 直近 50 件の、長いほうから 5% の値 ＋ 60 ms。120 ms 以上、システムの間隔以下。</li>
+        <li>10 件たまるまでは、システムの間隔を使う。1 回に動かすのは、最大 50 ms。</li>
+        <li>測った値は、メモリ上だけ。設定ファイルには、手動で決めた値だけを書く。</li>
+      </ul>
+    </div>
+  </div>
+  <h3>待ちを感じにくくする工夫</h3>
+  <div class="card"><ul>
+    <li>ダブルクリックのあと、マウスを動かしたら、W を待たずにすぐ確定する（貼り付け先へ動かすのが、ふつうの次の動き）。</li>
+    <li>キーを押した・アプリを切り替えた・スクロールした、でも、すぐ確定する。</li>
+    <li>ドラッグ・3 回目のクリック・キーボードでの選択は、待たない。</li>
+  </ul></div>
+</section>
+
+<section id="settings">
+  <h2>8 設定とメニュー</h2>
+  <div class="grid2">
+    <div>
+      <div class="win"><div class="top"><div class="tls"><i></i><i></i><i></i></div><div><div class="ttl">自動コピー</div></div><div></div></div>
+        <div class="form">
+          <div class="gh">クリックの続きを待つ時間</div>
+          <div class="gp">
+            <div class="r"><span class="t">決め方</span><span class="segs"><span class="on">自動</span><span>手動</span></span></div>
+            <div class="r"><span class="t">いまの値 <b>230 ms</b><small>直近 32 回のクリックから計算（離してから次に押すまで：1→2 回目 平均 140 ms、2→3 回目 平均 120 ms）。上限はシステムの間隔 500 ms</small></span><span class="chip">計測をリセット</span></div>
+          </div>
+          <div class="gh">ポップアップ</div>
+          <div class="gp">
+            <div class="r"><span class="t">コピーしたら「コピーしました」を出す</span><span class="tog"></span></div>
+            <div class="r"><span class="t">表示する時間</span><span class="chip">1.2 秒 ▾</span></div>
+          </div>
+          <div class="gh">貼り付け</div>
+          <div class="gp">
+            <div class="r"><span class="t">置き換え貼り付けを守る<small>選んだ範囲に ⌘V したときは、その範囲を自動コピーする前の内容を貼り付けます</small></span><span class="tog"></span></div>
+          </div>
+          <div class="gh">除外</div>
+          <div class="gp">
+            <div class="r"><span class="t">自動コピーしないアプリ<small>「一般」の機密情報を扱うアプリに加えて、ここでも外せます（例：自分で「選択でコピー」するターミナル）</small></span><span class="chip">追加…</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">選び方の設定は置かない。オンオフは「一般」とメニュー。</div>
+    </div>
+    <div>
+      <div class="menu">
+        <div class="mi"><span class="ic">📋</span><span class="t">クリップボード履歴を表示</span><span class="k">⇧⌘V</span></div>
+        <div class="mi hl"><span class="ic">✓</span><span class="t">選択を自動でコピー</span></div>
+        <div class="mi"><span class="ic">☕</span><span class="t">スリープを防止</span><span class="k">⌃⌥S</span></div>
+        <div class="sep"></div>
+        <div class="mi"><span class="ic">⚙</span><span class="t">設定…</span><span class="k">⌘,</span></div>
+      </div>
+      <div class="caption">メニューからオンオフ（スリープ防止と同じく、機能がオフでも出し、押したらオンにするか確認）。</div>
+      <div class="card" style="margin-top:14px"><b>「一般」に置くもの（全機能に共通）</b>
+        <div class="gp" style="margin-top:8px">
+          <div class="r"><span class="t">機密情報を扱うアプリ<small>クリップボード履歴に記録せず、自動コピーもしない</small></span><span class="chip">編集…</span></div>
+        </div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0">パスワード管理アプリを 1 か所に登録すれば、全機能に効く。機能ごとに登録し忘れる心配がない。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <h2>9 安全のための決まり</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>決まり</th><th>理由</th></tr>
+    <tr><td><b>自動コピーした内容は、ほかの Apple 端末に送らない</b>（ユニバーサルクリップボードの対象外にする。<code>NSPasteboard.prepareForNewContents(with: .currentHostOnly)</code>）</td><td>選んだだけのものが、iPhone などに自動で流れないように。⌘C でのコピーは、これまでどおり。</td></tr>
+    <tr><td>選んでいる途中の選択は、クリップボードに一度も書かない</td><td>途中の内容が、ほかのアプリや端末に見えない。</td></tr>
+    <tr><td>パスワード欄はいつも除外。機密情報を扱うアプリも除外</td><td>「一般」の共通リストで、全機能に効かせる。</td></tr>
+    <tr><td>意図しない選択（フォーカスでの全選択など）はコピーしない</td><td>フォームを移るだけで、カード番号などがコピーされない。</td></tr>
+    <tr><td>大きさの上限は、履歴と同じ固定値（1 件 10 MB）</td><td>巨大な選択でメモリを使いすぎない。人が調整する値ではない。</td></tr>
+    <tr><td>キー入力は、⇧・移動キー・⌘A・⌘V だけを見る。文字は記録しない</td><td>入力を見張る仕組みが、余計なものを持たない。</td></tr>
+    <tr><td>MitsuTools 自身の画面での選択は、対象外</td><td>設定画面などで、自分の中身をコピーしない。</td></tr>
+  </table></div>
+</section>
+
+<section id="perm">
+  <h2>10 許可の表示</h2>
+  <p>選択範囲の読み取りに、アクセシビリティの許可が要ります。いまのアプリでの表示（コードで確認済み）と、そろえ方の案です。</p>
+  <div class="grid2">
+    <div class="card"><b>いまの表示は、機能によって違う</b>
+      <ul>
+        <li>ウィンドウ：ペインに何も出ない。ショートカットで macOS の許可ダイアログを出す。</li>
+        <li>クリップボード：ペインに何も出ない。自動貼り付けだけ、黙ってしない。</li>
+        <li>入力方式：説明文に「許可が要ります」とあるだけ。Spotlight の検出だけ、黙って動かない。</li>
+        <li>ブックマーク：行ごとに、オレンジの「読み込みが許可されていません」とボタン（ブラウザごとの許可）。</li>
+        <li>共通：「一般」の「権限」欄に状態。起動時、足りなければ「一般」を開く。</li>
+      </ul>
+    </div>
+    <div class="card"><b>そろえ方（案）</b>
+      <ul>
+        <li>アプリ全体の許可が足りないときは、<b>その機能のペインの先頭</b>に、共通のバナーを出す。許可済みなら出さない。</li>
+        <li>項目ごとの許可（ブックマークのブラウザ）は、行の中のまま。</li>
+        <li>自動で動く機能（自動コピー・入力方式）は、許可がないと動かない。毎回の通知は出さず、バナーと「一般」で知らせる。</li>
+      </ul>
+      <div class="banner"><span class="bi">⚠</span><div class="bt"><b>アクセシビリティの許可が必要です</b><small>選んだ範囲の文字を読み取るのに使います。</small></div><span class="btn">許可する…</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="diff">
+  <h2>11 前の案との違い</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>項目</th><th>前の案</th><th>今回</th><th>理由</th></tr>
+    <tr class="new"><td>状態の作り方</td><td>クリックの回数ごと（S1〜S9）</td><td>選択操作と確定の 5 状態（Q0〜Q4）</td><td>選び方に関心がない、という要件。トリプルクリックは例のひとつ。</td></tr>
+    <tr class="new"><td>意図しない選択</td><td>考えていない</td><td>1 回のクリックやフォーカスで生まれた選択はコピーしない</td><td>アドレスバー・フォームでの誤コピーと流出を防ぐ。</td></tr>
+    <tr class="new"><td>置き換え貼り付け</td><td>考えていない</td><td>保護する（案）</td><td>「選んで ⌘V で置き換える」が、自動コピーで壊れるため。</td></tr>
+    <tr class="new"><td>ほかの端末への送信</td><td>考えていない</td><td>自動コピーは、この Mac だけ</td><td>情報漏洩の心配への答え。</td></tr>
+    <tr><td>キーボードでの選択</td><td>対象外</td><td>対象（⇧＋移動キー、⌘A）</td><td>選び方によらない。</td></tr>
+    <tr><td>待ち時間</td><td>ダブル用・トリプル用の 2 つ</td><td>続きを待つ時間 W の 1 つ。動いたら待たずに確定</td><td>待ちが効くのは 1 か所だけ。</td></tr>
+    <tr><td>計測</td><td>専用の計測画面（5 回クリック）</td><td>ふだんの操作の中で計測</td><td>求めているのは自動調整。計測は手段。</td></tr>
+    <tr><td>計測の区間・上限</td><td>押してから押すまで／最大 1000 ms</td><td>離してから押すまで／上限はシステムの間隔</td><td>実際に待つ区間を測る。それ以上待っても意味がない。</td></tr>
+    <tr><td>修飾キー</td><td>⌘⌥⌃ を押している間は何もしない</td><td>決まりを置かない</td><td>選択が生まれなければ、何も起きない。決まりを減らす。</td></tr>
+    <tr><td>失敗の通知</td><td>設定で出せる</td><td>出さない</td><td>自動で動く機能は、静かに。</td></tr>
+  </table></div>
+</section>
+
+<section id="ask">
+  <h2>12 決めたいこと</h2>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>#</th><th>確認したいこと</th><th>案</th></tr>
+    <tr><td>1</td><td><b>置き換え貼り付けの保護</b>を入れるか。⌘V を一瞬だけ見張る仕組みが増える。</td><td>入れる（初期値オン）。</td></tr>
+    <tr><td>2</td><td><b>キーボードでの選択</b>（⇧＋移動キー、⌘A）も対象にするか。</td><td>対象にする。</td></tr>
+    <tr><td>3</td><td><b>自動コピーをほかの端末に送らない</b>でよいか。</td><td>送らない。</td></tr>
+    <tr><td>4</td><td>選択を読み取れないアプリ（一部の Electron アプリなど）で、⌘C を代わりに送るか。</td><td>送らない（読み取れないアプリでは動かない）。必要なら、アプリごとに許す設定を後で足す。</td></tr>
+    <tr><td>5</td><td>除外の置き場所：「一般」の共通リスト＋自動コピーの追加リスト。</td><td>この形。</td></tr>
+    <tr><td>6</td><td>許可の表示：ペインの先頭に共通のバナー。ほかの機能のペインにも足す。</td><td>この形。</td></tr>
+  </table></div>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+document.documentElement.dataset.theme = 'light';
+document.querySelectorAll('#theme button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#theme button').forEach(x => x.classList.toggle('on', x === b));
+  document.documentElement.dataset.theme = b.dataset.t;
+});
+
+// ---------- 状態遷移図
+(function () {
+  const N = {
+    Q0: [70, 190, 'idle', 'Q0 待機', '選択の操作をしていない'],
+    Q1: [310, 190, 'op', 'Q1 選択操作中', '押している／⇧＋移動キー'],
+    Q2: [560, 40, 'wait', 'Q2 続きを待つ', 'W の間、次のクリックを待つ'],
+    Q3: [560, 320, 'read', 'Q3 判定', '意図した選択か・コピーしてよいか'],
+    Q4: [830, 320, 'ok', 'Q4 コピー済み', '「コピーしました」'],
+  };
+  let o = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--stroke)"/></marker></defs>`;
+  const e = d => o += `<path class="edge" d="${d}" marker-end="url(#ah)"/>`;
+  const t = (x, y, s, a = 'middle', b = false) => o += `<text class="lab ${b ? 'b' : ''}" x="${x}" y="${y}" text-anchor="${a}">${s}</text>`;
+  e('M240 222 L310 222'); t(275, 212, '始める', 'middle', true);
+  e('M450 190 C470 120 510 82 560 76'); t(456, 118, '離した（1・2 回目）', 'end', true);
+  e('M590 104 C575 160 530 206 480 214'); t(586, 170, 'W 内に、同じ場所で', 'start'); t(586, 185, '次のクリック', 'start', true);
+  e('M450 254 C470 320 510 350 560 352'); t(455, 322, '選び終えた：ドラッグして離す・', 'end', true); t(455, 337, '3 回目・⇧を離す・⌘A', 'end', true);
+  e('M645 104 L645 320'); t(655, 200, '選び終えた：', 'start', true); t(655, 215, 'W 経過・マウスが動いた・', 'start'); t(655, 230, 'キー・アプリ切り替え', 'start');
+  e('M730 352 L830 352'); t(780, 342, 'コピー', 'middle', true);
+  e('M600 384 C560 470 170 470 155 254'); t(380, 456, 'コピーしない（意図しない選択・空・除外・直前と同じ）', 'middle', true);
+  e('M1000 340 C1036 300 1036 -22 760 -22 L330 -22 C200 -22 155 60 155 190'); t(545, -32, '約 1.2 秒で消える／次の操作で消える', 'middle');
+  e('M70 210 C14 180 14 264 70 236'); t(8, 300, '選択だけ変わった', 'start'); t(8, 315, '（フォーカス等）→ 無視', 'start');
+  for (const [id, [x, y, c, a, b]] of Object.entries(N)) {
+    o += `<g class="node ${c}" data-s="${id}"><rect x="${x}" y="${y}" width="170" height="64" rx="12"/><text class="t1" x="${x + 85}" y="${y + 29}" text-anchor="middle">${a}</text><text class="t2" x="${x + 85}" y="${y + 47}" text-anchor="middle">${b}</text></g>`;
+  }
+  $('svg').innerHTML = o;
+})();
+
+// ---------- 試せる動作：状態機械
+const NAME = { Q0: 'Q0 待機', Q1: 'Q1 選択操作中', Q2: 'Q2 続きを待つ', Q3: 'Q3 判定', Q4: 'Q4 コピー済み' };
+const KIND = { Q0: '', Q1: 'op', Q2: 'wait', Q3: 'read', Q4: 'ok' };
+const play = $('play');
+const SYSTEM_INTERVAL = 500;
+let q = 'Q0', g = null, lastUp = null, timer = null, popTimer = null, mouseDown = false, popEl = null, t0 = performance.now();
+let clipboard = '', prevClipboard = '', clipFromAuto = false, lastAuto = null, count = 0, gaps = [];
+const W = () => +$('w').value;
+$('w').oninput = () => $('wv').textContent = W() + ' ms';
+
+function log(s, cls = '') { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = String(Math.round(performance.now() - t0)).padStart(6) + ' ms  ' + s; $('log').appendChild(d); $('log').scrollTop = 1e6; }
+function set(s, note = '') {
+  const from = q; q = s; $('pill').textContent = NAME[s]; $('pill').className = 'pill ' + KIND[s]; $('note').textContent = note;
+  document.querySelectorAll('#svg .node').forEach(n => n.classList.toggle('on', n.dataset.s === s));
+  if (from !== s) log(`${from} → ${s}${note ? '  ' + note : ''}`, 'dim');
+}
+set('Q0');
+const inPlay = n => n && play.contains(n);
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function hidePop() { clearTimeout(popTimer); if (popEl) { popEl.remove(); popEl = null; } }
+function showPop(rect) {
+  hidePop(); const el = document.createElement('div'); el.className = 'pop fixed'; el.innerHTML = '<span class="ck">✓</span>コピーしました'; document.body.appendChild(el);
+  let top = rect.top - el.offsetHeight - 8; if (top < 8) top = rect.bottom + 8;
+  el.style.left = Math.min(Math.max(rect.left + rect.width / 2, 90), innerWidth - 90) + 'px'; el.style.top = top + 'px'; popEl = el;
+}
+function readSelection() {
+  const a = document.activeElement;
+  if (a && inPlay(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) {
+    return { text: a.value.slice(a.selectionStart ?? 0, a.selectionEnd ?? 0), rect: a.getBoundingClientRect(), el: a, secure: a.type === 'password' };
+  }
+  const s = getSelection(); if (!s.rangeCount) return { text: '' };
+  const r = s.getRangeAt(0); if (!inPlay(r.commonAncestorContainer)) return { text: '' };
+  return { text: s.toString(), rect: r.getClientRects()[0] || r.getBoundingClientRect(), el: r.commonAncestorContainer.parentElement };
+}
+function updateLearn() {
+  $('learn').textContent = `学習：${gaps.length} 件` + (gaps.length ? `（直近の最大 ${Math.round(Math.max(...gaps))} ms）` : '');
+  if ($('auto').checked && gaps.length >= 3) {          // 本番は 10 件から。ここでは試しやすいよう 3 件から
+    const s = [...gaps].sort((a, b) => a - b), p95 = s[Math.min(s.length - 1, Math.floor(s.length * 0.95))];
+    const target = Math.min(SYSTEM_INTERVAL, Math.max(120, Math.round((p95 + 60) / 10) * 10));
+    const now = W(), next = now + Math.max(-50, Math.min(50, target - now));
+    if (next !== now) { $('w').value = next; $('w').oninput(); log(`自動調整：W を ${now} → ${next} ms`, 'dim'); }
+  }
+}
+function decide(reason) {
+  clearTimeout(timer); set('Q3', reason);
+  setTimeout(() => {
+    const sel = readSelection(), gest = g; g = null;
+    const intended = gest && (gest.kind !== 'mouse' || gest.dragged || gest.clicks >= 2 || gest.shift);
+    if (!intended) { log('意図しない選択（1 回のクリックでできた選択）：コピーしない', 'skip'); set('Q0'); return; }
+    if (!sel.text) { set('Q0', '選択なし'); return; }
+    if (sel.secure) { log('パスワード欄：コピーしない', 'skip'); set('Q0'); return; }
+    if (lastAuto && lastAuto.text === sel.text && lastAuto.el === sel.el) { log('直前と同じ選択：コピーしない', 'skip'); set('Q0'); return; }
+    prevClipboard = clipboard; clipboard = sel.text; clipFromAuto = true; lastAuto = { text: sel.text, el: sel.el }; count++; $('cnt').textContent = count;
+    $('clip').textContent = sel.text; log(`自動コピー：「${sel.text.length > 28 ? sel.text.slice(0, 28) + '…' : sel.text}」`, 'copy');
+    set('Q4', 'コピーした'); showPop(sel.rect); popTimer = setTimeout(() => { hidePop(); if (q === 'Q4') set('Q0'); }, 1200);
+  }, 30);
+}
+
+// マウス
+play.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  hidePop(); mouseDown = true;
+  const p = { x: e.clientX, y: e.clientY };
+  if (q === 'Q2' && lastUp && performance.now() - lastUp.t <= W() && dist(lastUp, p) <= 6) {
+    clearTimeout(timer); gaps.push(performance.now() - lastUp.t); if (gaps.length > 50) gaps.shift(); updateLearn();
+    g.down = p; set('Q1', '続きのクリック');
+  } else {
+    if (q === 'Q2') decide('別の操作が始まった');
+    g = { kind: 'mouse', clicks: 0, dragged: false, shift: e.shiftKey, down: p }; set('Q1', e.shiftKey ? '⇧＋クリック' : '押した');
+  }
+});
+addEventListener('mousemove', e => {
+  const p = { x: e.clientX, y: e.clientY };
+  if (q === 'Q1' && mouseDown && g && g.kind === 'mouse' && !g.dragged && dist(g.down, p) > 4) { g.dragged = true; $('note').textContent = 'ドラッグ'; }
+  if (q === 'Q2' && lastUp && dist(lastUp, p) > 6) decide('マウスが動いた');
+});
+addEventListener('mouseup', e => {
+  if (e.button !== 0) return; mouseDown = false;
+  if (q !== 'Q1' || !g || g.kind !== 'mouse') return;
+  g.clicks = e.detail || (g.clicks + 1); lastUp = { t: performance.now(), x: e.clientX, y: e.clientY };
+  if (g.dragged) decide('ドラッグして離した');
+  else if (g.clicks >= 3) decide('3 回目のクリック');
+  else { set('Q2', `${g.clicks} 回目を離した。W = ${W()} ms 待つ`); timer = setTimeout(() => decide('W 経過'), W()); }
+});
+// アドレスバー：1 回のクリックで全選択（ブラウザと同じ）
+const addr = $('addr'); let addrFocused = false;
+addr.addEventListener('mouseup', () => { if (!addrFocused) { addrFocused = true; addr.select(); } });
+addr.addEventListener('blur', () => addrFocused = false);
+// 選択だけが変わった（tab での全選択など）
+play.addEventListener('select', () => { if (q === 'Q0') log('選択だけが変わった（フォーカスで全選択など）：無視', 'dim'); }, true);
+
+// キーボード
+const NAV = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+addEventListener('keydown', e => {
+  if (!inPlay(document.activeElement) && !inPlay(getSelection().anchorNode)) return;
+  const cmd = e.metaKey || e.ctrlKey;
+  if (cmd && e.key.toLowerCase() === 'v' && document.activeElement === $('ed')) { e.preventDefault(); paste(); return; }
+  if (cmd && e.key.toLowerCase() === 'c') { const s = readSelection(); if (s.text) { prevClipboard = clipboard; clipboard = s.text; clipFromAuto = false; $('clip').textContent = s.text; log(`⌘C（ふつうのコピー）：「${s.text}」`); } e.preventDefault(); return; }
+  if (q === 'Q2') decide('キーを押した');
+  if (cmd && e.key.toLowerCase() === 'a') { hidePop(); g = { kind: 'selectAll' }; set('Q1', '⌘A'); setTimeout(() => decide('⌘A'), 40); return; }
+  if (e.shiftKey && NAV.includes(e.key)) { if (q !== 'Q1') { hidePop(); g = { kind: 'key' }; set('Q1', '⇧＋移動キー'); } }
+});
+addEventListener('keyup', e => { if (e.key === 'Shift' && q === 'Q1' && g && g.kind === 'key') setTimeout(() => decide('⇧を離した'), 60); });
+
+// 置き換え貼り付けの保護
+function paste() {
+  const ed = $('ed'), sel = ed.value.slice(ed.selectionStart, ed.selectionEnd);
+  let content = clipboard, how = 'クリップボードの内容';
+  if ($('protect').checked && clipFromAuto && sel && lastAuto && sel === lastAuto.text && prevClipboard) {
+    content = prevClipboard; how = '保護：選択範囲を自動コピーする前の内容';
+  }
+  ed.setRangeText(content, ed.selectionStart, ed.selectionEnd, 'end');
+  log(`⌘V：「${content}」を貼り付けた（${how}）`, how.startsWith('保護') ? 'copy' : '');
+}
+</script>
+</body>
+</html>

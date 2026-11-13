@@ -12,6 +12,7 @@ final class AppModel {
     private static func makeModules() -> [any ToolModule] {
         [
             ClipboardModule(),
+            AutoCopyModule(),
             WindowModule(),
             BookmarksModule(),
             LauncherModule(),
