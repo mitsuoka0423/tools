@@ -101,10 +101,6 @@ final class ClipboardStore {
     var skipConcealed: Bool {
         didSet { UserDefaults.standard.set(skipConcealed, forKey: Keys.skipConcealed) }
     }
-    /// 記録しないアプリの Bundle ID。
-    var excludedBundleIDs: [String] {
-        didSet { UserDefaults.standard.set(excludedBundleIDs, forKey: Keys.excluded) }
-    }
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var lastChangeCount = NSPasteboard.general.changeCount
@@ -114,7 +110,6 @@ final class ClipboardStore {
         static let maxCount = "clipboard.maxCount"
         static let autoPaste = "clipboard.autoPaste"
         static let skipConcealed = "clipboard.skipConcealed"
-        static let excluded = "clipboard.excludedBundleIDs"
     }
 
     /// パスワード管理アプリなどが「記録しないで」と示すための型（nspasteboard.org の取り決め）。
@@ -131,17 +126,10 @@ final class ClipboardStore {
             Keys.maxCount: Self.defaultMaxCount,
             Keys.autoPaste: true,
             Keys.skipConcealed: true,
-            Keys.excluded: [
-                "com.1password.1password",
-                "com.bitwarden.desktop",
-                "com.apple.keychainaccess",
-                "com.apple.Passwords",
-            ],
         ])
         maxCount = d.integer(forKey: Keys.maxCount)
         autoPaste = d.bool(forKey: Keys.autoPaste)
         skipConcealed = d.bool(forKey: Keys.skipConcealed)
-        excludedBundleIDs = d.stringArray(forKey: Keys.excluded) ?? []
     }
 
     func start() {
@@ -223,7 +211,8 @@ final class ClipboardStore {
         if skipConcealed, types.contains(where: { Self.privateTypes.contains($0.rawValue) }) { return nil }
 
         let frontApp = NSWorkspace.shared.frontmostApplication
-        if let bundleID = frontApp?.bundleIdentifier, excludedBundleIDs.contains(bundleID) { return nil }
+        // 機密情報を扱うアプリ（「一般」で設定。全機能に共通）でのコピーは記録しない
+        if PrivacySettings.shared.isSensitive(frontApp?.bundleIdentifier) { return nil }
 
         var reps: [(NSPasteboard.PasteboardType, Data)] = []
         for type in types {

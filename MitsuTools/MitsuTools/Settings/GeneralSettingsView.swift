@@ -4,6 +4,7 @@ struct GeneralSettingsView: View {
     @State private var model = AppModel.shared
     private let permission = AccessibilityPermission.shared
     private let config = ConfigFile.shared
+    private let privacy = PrivacySettings.shared
 
     var body: some View {
         Form {
@@ -53,6 +54,14 @@ struct GeneralSettingsView: View {
                 }
             } header: {
                 Text("設定ファイル")
+            }
+
+            Section {
+                AppListEditor(title: "機密情報を扱うアプリ",
+                              subtitle: "クリップボード履歴に記録せず、自動コピーもしません",
+                              bundleIDs: Binding(get: { privacy.sensitiveBundleIDs }, set: { privacy.sensitiveBundleIDs = $0 }))
+            } header: {
+                Text("プライバシー")
             }
 
             Section("機能") {

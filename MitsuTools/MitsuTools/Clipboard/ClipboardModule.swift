@@ -43,7 +43,6 @@ final class ClipboardModule: ToolModule {
             ("max_count", .int(store.maxCount)),
             ("auto_paste", .bool(store.autoPaste)),
             ("skip_concealed", .bool(store.skipConcealed)),
-            ("excluded_apps", .array(store.excludedBundleIDs.map { .string($0) })),
         ]
     }
 
@@ -51,7 +50,6 @@ final class ClipboardModule: ToolModule {
         if let v = table["max_count"]?.int, v > 0, v != store.maxCount { store.maxCount = v }
         if let v = table["auto_paste"]?.bool, v != store.autoPaste { store.autoPaste = v }
         if let v = table["skip_concealed"]?.bool, v != store.skipConcealed { store.skipConcealed = v }
-        if let v = table["excluded_apps"]?.stringArray, v != store.excludedBundleIDs { store.excludedBundleIDs = v }
     }
 }
 
@@ -111,6 +109,7 @@ struct ClipboardSettingsView: View {
 
     var body: some View {
         Form {
+            PermissionBanner(reason: "選んだ履歴を、元のアプリに自動で貼り付けるのに使います。")
             Section {
                 LabeledContent("履歴を表示") { ShortcutRecorder(actionID: ClipboardModule.showActionID) }
                 LabeledContent("保持する件数") { MaxCountField(store: store) }
@@ -120,53 +119,16 @@ struct ClipboardSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("プライバシー") {
+            Section {
                 Toggle("パスワードなどの機密データを記録しない", isOn: $store.skipConcealed)
-                LabeledContent("記録しないアプリ") {
-                    Button("追加…", action: addExcludedApp)
-                }
-                ForEach(store.excludedBundleIDs, id: \.self) { bundleID in
-                    HStack {
-                        appLabel(bundleID)
-                        Spacer()
-                        Button {
-                            store.excludedBundleIDs.removeAll { $0 == bundleID }
-                        } label: {
-                            Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("リストから外す")
-                    }
-                }
+            } header: {
+                Text("プライバシー")
+            } footer: {
+                Text("記録しないアプリは、「一般」の「機密情報を扱うアプリ」で設定します（全機能に共通）。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-    }
-
-    @ViewBuilder
-    private func appLabel(_ bundleID: String) -> some View {
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            Label {
-                Text(FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: ""))
-            } icon: {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().frame(width: 16, height: 16)
-            }
-        } else {
-            Text(bundleID).foregroundStyle(.secondary)
-        }
-    }
-
-    private func addExcludedApp() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
-        for url in panel.urls {
-            if let id = Bundle(url: url)?.bundleIdentifier, !store.excludedBundleIDs.contains(id) {
-                store.excludedBundleIDs.append(id)
-            }
-        }
     }
 }

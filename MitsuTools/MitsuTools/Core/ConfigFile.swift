@@ -103,6 +103,7 @@ final class ConfigFile {
         table("general", [
             ("show_menu_bar_icon", .bool(model.showsMenuBarIcon)),
             ("launch_at_login", .bool(model.launchesAtLogin)),
+            ("sensitive_apps", .array(PrivacySettings.shared.sensitiveBundleIDs.map { .string($0) })),
         ])
         table("modules", model.modules.map { ($0.id, .bool(model.isEnabled($0))) })
         for module in model.modules { table(module.id, module.exportConfig()) }
@@ -152,6 +153,11 @@ final class ConfigFile {
         if let general = tables["general"] {
             if let v = general["show_menu_bar_icon"]?.bool, v != model.showsMenuBarIcon { model.showsMenuBarIcon = v }
             if let v = general["launch_at_login"]?.bool, v != model.launchesAtLogin { model.launchesAtLogin = v }
+        }
+        // 機密情報を扱うアプリ。以前はクリップボードの excluded_apps に書いていたので、それも読む
+        if let v = tables["general"]?["sensitive_apps"]?.stringArray ?? tables["clipboard"]?["excluded_apps"]?.stringArray,
+           v != PrivacySettings.shared.sensitiveBundleIDs {
+            PrivacySettings.shared.sensitiveBundleIDs = v
         }
         if let modules = tables["modules"] {
             for module in model.modules {

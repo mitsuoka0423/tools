@@ -84,6 +84,7 @@ struct WindowSettingsView: View {
 
     var body: some View {
         Form {
+            PermissionBanner(reason: "ウィンドウを動かすのに使います。")
             Section {
                 IconRow(icon: .gap, title: "ウィンドウ間のギャップ") { slider($manager.gap) }
                 IconRow(icon: .margin, title: "画面端の余白") { slider($manager.margin) }

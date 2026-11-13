@@ -214,6 +214,7 @@ struct InputSourceSettingsView: View {
 
     var body: some View {
         Form {
+            PermissionBanner(reason: "Spotlight のように前面に出ない画面を見つけるのに使います。")
             Section {
                 if module.rules.isEmpty {
                     Text("アプリがありません。「アプリを追加」から登録してください。").foregroundStyle(.secondary)
@@ -242,7 +243,7 @@ struct InputSourceSettingsView: View {
                     addMenu
                 }
             } footer: {
-                Text("アプリを前面に出したときに、決めておいた入力方式へ切り替えます。Spotlight のように前面に出ない画面を見つけるには、アクセシビリティの許可が要ります。システム設定の「キーボード」で「書類ごとに入力ソースを自動的に切り替える」がオンだと、期待どおりに切り替わらないことがあります。")
+                Text("アプリを前面に出したときに、決めておいた入力方式へ切り替えます。システム設定の「キーボード」で「書類ごとに入力ソースを自動的に切り替える」がオンだと、期待どおりに切り替わらないことがあります。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
