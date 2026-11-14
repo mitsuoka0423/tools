@@ -110,6 +110,8 @@ private struct AutoCopyMenuItems: View {
 
 struct AutoCopySettingsView: View {
     let module: AutoCopyModule
+    @State private var configureNote: String?
+    private let editContext = EditContextApps.shared
 
     var body: some View {
         @Bindable var settings = module.settings
@@ -117,6 +119,41 @@ struct AutoCopySettingsView: View {
         let systemMax = ClickGapLearner.systemMaxMs
         Form {
             PermissionBanner(reason: "選んだ文字を読み取るのと、⌘V を見分けるのに使います。")
+
+            if !editContext.items.isEmpty {
+                Section {
+                    ForEach(editContext.items) { item in
+                        HStack(spacing: 8) {
+                            Image(nsImage: item.icon).resizable().frame(width: 18, height: 18)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                if item.status == .needsSettings {
+                                    Text("このままでは自動コピーが効きません（設定されていません）")
+                                        .font(.caption).foregroundStyle(.orange)
+                                }
+                            }
+                            Spacer()
+                            if item.status == .ready {
+                                Label("設定済み", systemImage: "checkmark.circle.fill")
+                                    .font(.caption).labelStyle(.titleAndIcon).foregroundStyle(.green)
+                            } else {
+                                Button("設定") { configure(item) }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    if let configureNote {
+                        Text(configureNote).font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } header: {
+                    Text("アプリの設定が要るエディタ")
+                } footer: {
+                    Text("VS Code 系のエディタは、既定の入力方式（EditContext）では選んだ文字を macOS のアクセシビリティに出さず、また支援技術を使っているという設定にしないと選択を外部に見せません。「設定」を押すと、アプリの設定ファイル（settings.json）に editor.editContext: false と editor.accessibilitySupport: \"on\" を書き込みます。書き込み後は、そのアプリのウィンドウを開き直すと効きます。")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
 
             Section {
                 Picker("クリックの続きを待つ時間", selection: $settings.waitMode) {
@@ -197,12 +234,23 @@ struct AutoCopySettingsView: View {
             } footer: {
                 Text("パスワードの欄で選んだ文字はコピーしません。自動コピーした内容は、ほかの Apple 製デバイスには送りません。")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("VS Code・Cursor などでは、アプリ側の editor.editContext の設定を false にすると動くようになります（既定の EditContext 方式は、選んだ文字を macOS のアクセシビリティに出さないため）。")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
+        .onAppear { editContext.refresh() }
+    }
+
+    private func configure(_ item: EditContextApps.Item) {
+        switch editContext.configure(item) {
+        case .configured:
+            configureNote = "\(item.name) の設定に editor.editContext と editor.accessibilitySupport を書き込みました。ウィンドウを開き直すと自動コピーが効くようになります。"
+        case .alreadyConfigured:
+            configureNote = "\(item.name) の settings.json はすでに設定済みでした。ウィンドウを開き直してください。"
+        case .unparseable:
+            configureNote = "\(item.name) の settings.json は形が特殊なため、勝手に書き換えられませんでした。設定の内容は \(EditContextGuide.settingSnippet) です。"
+        case .failed:
+            configureNote = "\(item.name) の settings.json に書き込めませんでした（読み取りや書き込みの権限を確認してください）。"
+        }
     }
 
     private func gapSummary(_ learner: ClickGapLearner) -> String {

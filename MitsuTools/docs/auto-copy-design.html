@@ -410,7 +410,7 @@ tr.new td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
     <tr><td>2</td><td><b>キーボードでの選択</b>（⇧＋移動キー、⌘A）も対象にするか。</td><td>対象にする。</td></tr>
     <tr><td>3</td><td><b>自動コピーをほかの端末に送らない</b>でよいか。</td><td>送らない。</td></tr>
     <tr><td>4</td><td>選択を読み取れないアプリ（一部の Electron アプリなど）で、⌘C を代わりに送るか。</td><td>送らない（読み取れないアプリでは動かない）。必要なら、アプリごとに許す設定を後で足す。</td></tr>
-    <tr><td>4b</td><td>（実測 2026-11）VS Code 1.95 以降は入力欄に EditContext を使い、Chromium がその中身を macOS のアクセシビリティに公開しない。選択があっても AXSelectedText もテキストマーカーも常に空で、読み取り側では直せない。</td><td>⌘C は送らない方針のまま、EditContext を検出したら「アプリの設定で editor.editContext を false にすると動く」案内を 1 回だけ出す（設定画面の注記にも記載）。</td></tr>
+    <tr><td>4b</td><td>（実測 2026-11）VS Code 1.95 以降は入力欄に EditContext を使い、Chromium がその中身を macOS のアクセシビリティに公開しない。また editor.accessibilitySupport が auto のままと、選んだ文字を従来の textarea にも写さない（Electron の有効化では支援技術判定が立たない）。読み取り側では直せない。</td><td>⌘C は送らない方針のまま、設定ファイルへの書き込み機能で直す：editor.editContext: false と editor.accessibilitySupport: "on" を settings.json に書き込み、ウィンドウ開き直しを案内。検出時の案内（1 回）と、設定画面の一覧（状態表示＋ワンクリック設定）を出す。</td></tr>
     <tr><td>5</td><td>除外の置き場所：「一般」の共通リスト＋自動コピーの追加リスト。</td><td>この形。</td></tr>
     <tr><td>6</td><td>許可の表示：ペインの先頭に共通のバナー。ほかの機能のペインにも足す。</td><td>この形。</td></tr>
   </table></div>
