@@ -11,8 +11,10 @@ final class AutoCopySettings {
     var waitMode: WaitMode { didSet { defaults.set(waitMode.rawValue, forKey: Keys.waitMode) } }
     /// 自分で決めるときの待つ時間（ミリ秒）
     var manualWaitMs: Int { didSet { defaults.set(manualWaitMs, forKey: Keys.manualWaitMs) } }
-    /// ⇧＋移動キー・⌘A で選んだ範囲もコピーするか
+    /// ⇧＋移動キーで選んだ範囲もコピーするか
     var keyboardSelection: Bool { didSet { defaults.set(keyboardSelection, forKey: Keys.keyboardSelection) } }
+    /// ⌘A の全選択もコピーするか
+    var selectAllCopies: Bool { didSet { defaults.set(selectAllCopies, forKey: Keys.selectAll) } }
     var showPopup: Bool { didSet { defaults.set(showPopup, forKey: Keys.showPopup) } }
     var popupSeconds: Double { didSet { defaults.set(popupSeconds, forKey: Keys.popupSeconds) } }
     /// 自動コピーした範囲を選んだまま ⌘V したら、その前にコピーしていた内容を貼り付ける
@@ -26,6 +28,7 @@ final class AutoCopySettings {
         static let waitMode = "autocopy.waitMode"
         static let manualWaitMs = "autocopy.manualWaitMs"
         static let keyboardSelection = "autocopy.keyboardSelection"
+        static let selectAll = "autocopy.selectAllCopies"
         static let showPopup = "autocopy.showPopup"
         static let popupSeconds = "autocopy.popupSeconds"
         static let protectPaste = "autocopy.protectPaste"
@@ -39,6 +42,7 @@ final class AutoCopySettings {
             Keys.waitMode: WaitMode.auto.rawValue,
             Keys.manualWaitMs: 300,
             Keys.keyboardSelection: false,
+            Keys.selectAll: true,
             Keys.showPopup: true,
             Keys.popupSeconds: 1.2,
             Keys.protectPaste: true,
@@ -46,6 +50,7 @@ final class AutoCopySettings {
         waitMode = WaitMode(rawValue: defaults.string(forKey: Keys.waitMode) ?? "") ?? .auto
         manualWaitMs = defaults.integer(forKey: Keys.manualWaitMs)
         keyboardSelection = defaults.bool(forKey: Keys.keyboardSelection)
+        selectAllCopies = defaults.bool(forKey: Keys.selectAll)
         showPopup = defaults.bool(forKey: Keys.showPopup)
         popupSeconds = defaults.double(forKey: Keys.popupSeconds)
         protectPaste = defaults.bool(forKey: Keys.protectPaste)
@@ -78,6 +83,7 @@ final class AutoCopyModule: ToolModule {
             ("wait_mode", .string(settings.waitMode.rawValue)),
             ("wait_ms", .int(settings.manualWaitMs)),
             ("keyboard_selection", .bool(settings.keyboardSelection)),
+            ("select_all", .bool(settings.selectAllCopies)),
             ("show_popup", .bool(settings.showPopup)),
             ("popup_seconds", .double(settings.popupSeconds)),
             ("protect_paste", .bool(settings.protectPaste)),
@@ -90,6 +96,7 @@ final class AutoCopyModule: ToolModule {
         if let v = table["wait_mode"]?.string.flatMap(AutoCopySettings.WaitMode.init(rawValue:)), v != s.waitMode { s.waitMode = v }
         if let v = table["wait_ms"]?.int, v > 0, v != s.manualWaitMs { s.manualWaitMs = v }
         if let v = table["keyboard_selection"]?.bool, v != s.keyboardSelection { s.keyboardSelection = v }
+        if let v = table["select_all"]?.bool, v != s.selectAllCopies { s.selectAllCopies = v }
         if let v = table["show_popup"]?.bool, v != s.showPopup { s.showPopup = v }
         if let v = table["popup_seconds"]?.double, v > 0, v != s.popupSeconds { s.popupSeconds = v }
         if let v = table["protect_paste"]?.bool, v != s.protectPaste { s.protectPaste = v }
@@ -209,9 +216,13 @@ struct AutoCopySettingsView: View {
             }
 
             Section {
+                Toggle(isOn: $settings.selectAllCopies) {
+                    Text("⌘A の全選択もコピーする")
+                    Text("書類やウィンドウ全体を ⌘A で選んだとき、その範囲をコピーします。")
+                }
                 Toggle(isOn: $settings.keyboardSelection) {
-                    Text("キーボードで選んだ範囲もコピーする")
-                    Text("⇧＋矢印キーなど、⌘A で選んだ範囲もコピーします。")
+                    Text("⇧＋移動キーでの選択もコピーする")
+                    Text("⇧＋矢印キーや ⇧＋Home/End など、キーボードでなぞった範囲もコピーします。")
                 }
                 Toggle(isOn: $settings.protectPaste) {
                     Text("選んだ範囲への貼り付けを守る")

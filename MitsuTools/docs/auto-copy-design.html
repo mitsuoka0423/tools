@@ -407,7 +407,7 @@ tr.new td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
   <div class="card" style="overflow-x:auto"><table>
     <tr><th>#</th><th>確認したいこと</th><th>案</th></tr>
     <tr><td>1</td><td><b>置き換え貼り付けの保護</b>を入れるか。⌘V を一瞬だけ見張る仕組みが増える。</td><td>入れる（初期値オン）。</td></tr>
-    <tr><td>2</td><td><b>キーボードでの選択</b>（⇧＋移動キー、⌘A）も対象にするか。</td><td>対象にする。</td></tr>
+    <tr><td>2</td><td><b>キーボードでの選択</b>（⇧＋移動キー、⌘A）も対象にするか。</td><td>⌘A は既定で対象（設定でオフにできる）。⇧＋移動キーは設定でオンのときだけ（実装時の調整、2026-11）。</td></tr>
     <tr><td>3</td><td><b>自動コピーをほかの端末に送らない</b>でよいか。</td><td>送らない。</td></tr>
     <tr><td>4</td><td>選択を読み取れないアプリ（一部の Electron アプリなど）で、⌘C を代わりに送るか。</td><td>送らない（読み取れないアプリでは動かない）。必要なら、アプリごとに許す設定を後で足す。</td></tr>
     <tr><td>4b</td><td>（実測 2026-11）VS Code 1.95 以降は入力欄に EditContext を使い、Chromium がその中身を macOS のアクセシビリティに公開しない。また editor.accessibilitySupport が auto のままと、選んだ文字を従来の textarea にも写さない（Electron の有効化では支援技術判定が立たない）。読み取り側では直せない。</td><td>⌘C は送らない方針のまま、設定ファイルへの書き込み機能で直す：editor.editContext: false と editor.accessibilitySupport: "on" を settings.json に書き込み、ウィンドウ開き直しを案内。検出時の案内（1 回）と、設定画面の一覧（状態表示＋ワンクリック設定）を出す。</td></tr>

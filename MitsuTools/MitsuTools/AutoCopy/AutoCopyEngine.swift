@@ -6,8 +6,8 @@ import Carbon.HIToolbox
 /// 「意図して選んだ範囲を、選び終えた時点で 1 回だけコピーする」。
 /// - 確定：ボタン・キーを離していて、選択がもう続かないとわかった時点。
 ///   マルチクリックの途中かもしれない間だけ待つ（W）。動いた・キーを押した・ドラッグ・3 回目なら待たない。
-/// - 意図：ドラッグ、2 回以上のクリック、⇧＋クリック、（設定でオンなら）⇧＋移動キー・⌘A で作った選択だけ。
-///   1 回のクリックやフォーカスで、アプリが作った全選択はコピーしない。
+/// - 意図：ドラッグ、2 回以上のクリック、⇧＋クリック、⌘A（設定でオフにできる）、
+///   設定でオンなら ⇧＋移動キー。1 回のクリックやフォーカスで、アプリが作った全選択はコピーしない。
 @MainActor
 final class AutoCopyEngine {
     /// 設計の Q0〜Q4
@@ -154,14 +154,16 @@ final class AutoCopyEngine {
         let isPaste = code == kVK_ANSI_V && flags == .command
         if !isPaste { touchedSinceCopy = true }
         if phase == .awaiting { decide() }
-        guard settings.keyboardSelection else { return }
         if code == kVK_ANSI_A && flags == .command {
-            popup.hide()
-            gesture = Gesture(kind: .selectAll)
-            phase = .selecting
-            decide(after: 0.12)
+            if settings.selectAllCopies {
+                popup.hide()
+                gesture = Gesture(kind: .selectAll)
+                phase = .selecting
+                decide(after: 0.12)
+            }
             return
         }
+        guard settings.keyboardSelection else { return }
         if flags.contains(.shift), Self.navigationKeys.contains(code), !(phase == .selecting && gesture?.kind == .key) {
             popup.hide()
             gesture = Gesture(kind: .key)
