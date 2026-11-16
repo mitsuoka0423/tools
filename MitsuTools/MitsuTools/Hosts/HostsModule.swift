@@ -134,8 +134,9 @@ struct HostsSettingsView: View {
     let module: HostsModule
     @State private var selectedID: HostsProfile.ID?
     @State private var entriesText: String = ""
+    /// 編集中かどうか。既定は読み取り専用（手で当てて誤って変えないように）
+    @State private var isEditing = false
     @State private var note: String?
-    @State private var saveWork: DispatchWorkItem?
 
     private var selectedProfile: HostsProfile? {
         module.store.profiles.first { $0.id == selectedID }
@@ -143,17 +144,19 @@ struct HostsSettingsView: View {
 
     var body: some View {
         Form {
-            Section("プロファイル") {
+            Section {
                 if module.store.profiles.isEmpty {
                     Text("まだプロファイルがありません").foregroundStyle(.secondary)
                 }
                 ForEach(module.store.profiles) { profile in
-                    HStack {
+                    HStack(spacing: 10) {
+                        Toggle("", isOn: appliedSwitch(for: profile))
+                            .labelsHidden()
+                            .help("オンにすると、このプロファイルを適用します（管理者のパスワードが要ります）")
                         Button {
                             select(profile)
                         } label: {
-                            HStack {
-                                Image(systemName: selectedID == profile.id ? "largecircle.fill.circle" : "circle")
+                            VStack(alignment: .leading, spacing: 1) {
                                 Text(profile.displayName)
                                 Text("\(profile.entries.count) 行").font(.caption).foregroundStyle(.secondary)
                             }
@@ -187,42 +190,56 @@ struct HostsSettingsView: View {
                 if let note {
                     Text(note).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
+            } header: {
+                Text("プロファイル")
+            } footer: {
+                Text("スイッチをオンにすると、そのプロファイルが /etc/hosts に入ります（管理者のパスワードが要ります）。オフにすると、管理していた区間だけが取り除かれます。")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section {
                 if let profile = selectedProfile {
-                    TextEditor(text: $entriesText)
-                        .font(.system(size: 12, design: .monospaced))
-                        .frame(height: 110)
-                        .onChange(of: entriesText) { _, _ in scheduleSave() }
+                    if isEditing {
+                        TextEditor(text: $entriesText)
+                            .font(.system(size: 12, design: .monospaced))
+                            .frame(height: 110)
+                        HStack {
+                            Button("完了") { finishEditing(profile) }
+                            Button("やめる") { cancelEditing() }
+                            Spacer()
+                        }
+                    } else {
+                        Text(profile.entries.isEmpty ? "（空です）" : profile.entries.joined(separator: "\n"))
+                            .font(.system(size: 12, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(height: 110, alignment: .top)
+                        HStack {
+                            Button("編集") { startEditing(profile) }
+                            Spacer()
+                        }
+                    }
                     Text("1 行につき 1 つ（例: 127.0.0.1 dev.local）。空行とコメント行（# で始まる）は無視されます。")
-                        .font(.caption).foregroundStyle(.secondary)                } else {
-                    Text("プロファイルを選ぶと、ここで行を編集できます").foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("プロファイルを選ぶと、中身が表示されます").foregroundStyle(.secondary)
                 }
             } header: {
-                Text("内容")
+                Text("中身")
             }
 
             Section {
-                LabeledContent {
-                    Text(module.settings.appliedProfileName ?? "なし").foregroundStyle(.secondary)
-                } label: {
-                    Text("今適用されているもの")
-                }
                 Toggle("切り替えるときに DNS のキャッシュを消す", isOn: Binding(
                     get: { module.settings.flushDNS },
                     set: { module.settings.flushDNS = $0 }
                 ))
                 HStack {
-                    Button("このプロファイルを適用") { applySelected() }
-                        .disabled(selectedProfile == nil)
-                    Button("解除") { module.apply(nil) }
-                        .disabled(!module.settings.hasManagedBlock)
-                    Spacer()
                     Button("直前に戻す") { module.restoreBackup() }
+                    Spacer()
                 }
             } header: {
-                Text("適用")
+                Text("オプション")
             } footer: {
                 Text("""
                 適用すると /etc/hosts の「# >>> mitsutools >>>」と「# <<< mitsutools <<<」で挟んだ区間だけが入れ替わります。システムの既定の行は残ります。直前の内容は \(HostsFile.backupPath) に残ります。
@@ -237,36 +254,52 @@ struct HostsSettingsView: View {
             module.store.load()
             module.refreshState()
             if selectedID == nil { selectedID = module.store.profiles.first?.id }
-            if let profile = selectedProfile { entriesText = profile.entries.joined(separator: "\n") }
         }
     }
 
     // MARK: 操作
 
+    /// スイッチ：オンなら適用、オフなら解除。別のプロファイルが有効になると、自動的にこのスイッチはオフになる
+    private func appliedSwitch(for profile: HostsProfile) -> Binding<Bool> {
+        Binding(
+            get: { module.settings.appliedProfileName == profile.name },
+            set: { isOn in
+                if isOn {
+                    module.apply(profile)
+                } else if module.settings.appliedProfileName == profile.name {
+                    module.apply(nil)
+                }
+            }
+        )
+    }
+
     private func select(_ profile: HostsProfile) {
         selectedID = profile.id
+        isEditing = false
         entriesText = profile.entries.joined(separator: "\n")
     }
 
-    private func save(_ profile: HostsProfile) {
+    private func startEditing(_ profile: HostsProfile) {
+        entriesText = profile.entries.joined(separator: "\n")
+        isEditing = true
+    }
+
+    /// 編集を確定する。空行とコメント行は落とす
+    private func finishEditing(_ profile: HostsProfile) {
         var updated = profile
         updated.entries = entriesText.components(separatedBy: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
         module.store.update(updated)
+        isEditing = false
+        entriesText = updated.entries.joined(separator: "\n")
+        note = "\(updated.displayName) の中身を保存しました。適用し直すと /etc/hosts にも反映されます。"
     }
 
-    /// 入力のたびに書き込まない。少し待ってからまとめて保存する。
-    private func scheduleSave() {
-        saveWork?.cancel()
-        let work = DispatchWorkItem { MainActor.assumeIsolated { self.commitEntries() } }
-        saveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
-    }
-
-    private func commitEntries() {
-        guard let profile = selectedProfile else { return }
-        save(profile)
+    /// 編集をやめて、元のままに戻す
+    private func cancelEditing() {
+        if let profile = selectedProfile { entriesText = profile.entries.joined(separator: "\n") }
+        isEditing = false
     }
 
     private func addProfile() {
@@ -299,10 +332,5 @@ struct HostsSettingsView: View {
         updated.name = field.stringValue.trimmingCharacters(in: .whitespaces)
         module.store.update(updated)
         note = "\(updated.displayName) に名前を変えました。適用し直すと /etc/hosts の表示も追従します。"
-    }
-
-    private func applySelected() {
-        guard let profile = selectedProfile else { return }
-        module.apply(profile)
     }
 }
