@@ -25,6 +25,17 @@ struct AXWindow {
 
     /// 画面をまたぐ移動でもサイズ制限に引っかからないよう、サイズ → 位置 → サイズの順に設定する。
     func setFrame(_ rect: CGRect) {
+        // AXEnhancedUserInterface（VoiceOver や自動コピーが Chrome などで有効にする）が有効だと、
+        // アプリがアニメーションしながら動かすため、位置や大きさがずれる。動かす間だけ切る。
+        var pid: pid_t = 0
+        AXUIElementGetPid(element, &pid)
+        let app = AXUIElementCreateApplication(pid)
+        var enhanced: CFTypeRef?
+        let wasEnhanced = AXUIElementCopyAttributeValue(app, "AXEnhancedUserInterface" as CFString, &enhanced) == .success
+            && (enhanced as? Bool) == true
+        if wasEnhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanFalse) }
+        defer { if wasEnhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue) } }
+
         setSize(rect.size)
         setPosition(rect.origin)
         setSize(rect.size)

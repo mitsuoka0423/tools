@@ -39,6 +39,8 @@ final class AutoCopyEngine {
     private var lastUp: (time: TimeInterval, point: CGPoint)?
     private var waitWork: DispatchWorkItem?
     private var monitor: Any?
+    private var activationObserver: NSObjectProtocol?
+    private var keepWarmTimer: Timer?
     private var tap: CFMachPort?
     private var tapSource: CFRunLoopSource?
     private var lastCopy: LastCopy?
@@ -50,6 +52,8 @@ final class AutoCopyEngine {
     /// 1 件の大きさの上限。クリップボード履歴と同じ 10 MB。
     static let maxBytes = 10 * 1024 * 1024
     private static let clickRadius: CGFloat = 6
+    /// Chrome などが Accessibility の情報を作り終えるのを待って読み直す間隔（秒）
+    private static let retryDelays: [Double] = [0.4, 0.8, 1.5, 3.0]
     private static let dragThreshold: CGFloat = 4
     private static let navigationKeys: Set<Int> = [kVK_LeftArrow, kVK_RightArrow, kVK_UpArrow, kVK_DownArrow,
                                                    kVK_Home, kVK_End, kVK_PageUp, kVK_PageDown]
@@ -69,11 +73,29 @@ final class AutoCopyEngine {
             MainActor.assumeIsolated { self?.handle(event) }
         }
         installPasteTapIfPossible()
+        // Chrome・Electron は、前面に来たときに Accessibility を有効にしておく
+        if let app = NSWorkspace.shared.frontmostApplication { SelectionReader.prepare(app) }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            MainActor.assumeIsolated { SelectionReader.prepare(app) }
+        }
+        // しばらく問い合わせがあるとツリーをたたんでしまうので、前面のアプリを周期的に触る
+        let keepWarm = Timer(timeInterval: 8, repeats: true) { [weak self] _ in
+            guard self != nil, let app = NSWorkspace.shared.frontmostApplication else { return }
+            MainActor.assumeIsolated { SelectionReader.prepare(app) }
+        }
+        RunLoop.main.add(keepWarm, forMode: .common)
+        keepWarmTimer = keepWarm
     }
 
     func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
+        activationObserver = nil
+        keepWarmTimer?.invalidate()
+        keepWarmTimer = nil
         removePasteTap()
         waitWork?.cancel()
         popup.hide()
@@ -184,7 +206,7 @@ final class AutoCopyEngine {
         }
     }
 
-    private func finish(_ g: Gesture) {
+    private func finish(_ g: Gesture, attempt: Int = 0) {
         defer { if phase == .deciding { phase = .idle } }
         let intended = g.kind != .mouse || g.dragged || g.clicks >= 2 || g.shift
         guard intended, AXIsProcessTrusted(),
@@ -194,15 +216,25 @@ final class AutoCopyEngine {
               !settings.excludedBundleIDs.contains(app.bundleIdentifier ?? "") else { return }
         let selection: SelectionReader.Selection
         switch SelectionReader.read(pid: app.processIdentifier) {
-        case .selection(let s):
-            guard !s.isSecure else { return }
-            selection = s
+        case .selection(let s) where !s.isSecure: selection = s
+        case .notReady where attempt < Self.retryDelays.count:
+            // アプリが Accessibility の情報を作り終えるのを待って、読み直す（選択はそのまま残っている）
+            let pid = app.processIdentifier
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryDelays[attempt]) { [weak self] in
+                MainActor.assumeIsolated {
+                    // 待つ間に、ほかの操作が始まっていたらやめる
+                    guard let self, self.phase == .idle, self.gesture == nil,
+                          NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return }
+                    self.phase = .deciding
+                    self.finish(g, attempt: attempt + 1)
+                }
+            }
+            return
         case .blockedByEditContext:
             // VS Code など。読み取りの失敗を繰り返すより、直しかたを一度だけ知らせる
             EditContextGuide.showOnce(for: app)
             return
-        case .nothingSelected:
-            return
+        default: return
         }
         let text = selection.text
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= Self.maxBytes else { return }

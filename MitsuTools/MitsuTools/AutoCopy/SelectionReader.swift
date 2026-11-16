@@ -12,25 +12,66 @@ enum SelectionReader {
         let isSecure: Bool
     }
 
-    enum ReadResult {
-        case selection(Selection)
-        /// 読めるが、いま選択はない
-        case nothingSelected
-        /// VS Code など EditContext を使う入力欄。選んだ文字が macOS のアクセシビリティに
-        /// 公開されない（Chromium の macOS 側の制限）ため、アプリ側の設定で直すしかない。
-        case blockedByEditContext
-    }
-
+    /// 他のアプリが応答しないときに、ここで長く止まらないための上限（秒）
+    private static let timeout: Float = 0.25
     /// Chromium が EditContext を使う入力欄に付ける DOM クラス。
     /// これが見えたら、テキストはアクセシビリティツリーのどこにも存在しない。
     private static let editContextDOMClass = "native-edit-context"
+    enum Result {
+        case selection(Selection)
+        case none
+        /// Chrome・Electron が Accessibility の情報をまだ作っていない（作るのに 1〜3 秒かかる）。少し待って読み直す
+        case notReady
+        /// VS Code など EditContext を使う入力欄。選んだ文字がツリーのどこにも存在せず、読み直しても無駄。
+        /// アプリ側の設定で直すしかない（EditContextGuide 参照。2026-11 実測）
+        case blockedByEditContext
+    }
 
-    static func read(pid: pid_t) -> ReadResult {
+    /// Chrome・Electron は、前面に来たときに Accessibility の情報を出さない。有効にしてから
+    /// 情報ができるまで 1〜10 秒かかるうえ、しばらく問い合わせがないとツリーをたたんでしまう
+    /// （2026-11、VS Code 1.146 で実測）。選ぶ前に、こまめに触っておく。
+    static func prepare(_ app: NSRunningApplication) {
+        guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              let url = app.bundleURL, isChromium(url) else { return }
+        _ = requestAccessibility(pid: app.processIdentifier)
+        // 起動したばかりだと、頼んでも無視されることがある。少し待って、効いていなければもう一度頼む
+        let pid = app.processIdentifier
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            MainActor.assumeIsolated { _ = requestAccessibility(pid: pid) }
+        }
+    }
+
+    /// Chromium（Chrome・Edge・Brave など）と Electron のアプリは、
+    /// 「〜 Helper (Renderer).app」を Frameworks の中か、その中のフレームワークに持つ。
+    private static var chromiumCache: [URL: Bool] = [:]
+    private static func isChromium(_ bundle: URL) -> Bool {
+        if let cached = chromiumCache[bundle] { return cached }
+        let fm = FileManager.default
+        let frameworks = bundle.appending(path: "Contents/Frameworks")
+        let entries = (try? fm.contentsOfDirectory(atPath: frameworks.path)) ?? []
+        let isRenderer = { (name: String) in name.contains("Helper (Renderer)") }
+        var result = entries.contains(where: isRenderer)
+        if !result {
+            result = entries.filter { $0.hasSuffix(".framework") }.contains { name in
+                let helpers = frameworks.appending(path: "\(name)/Versions/Current/Helpers")
+                return ((try? fm.contentsOfDirectory(atPath: helpers.path)) ?? []).contains(where: isRenderer)
+            }
+        }
+        chromiumCache[bundle] = result
+        return result
+    }
+
+    static func read(pid: pid_t) -> Result {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, timeout)
-        guard let focused = element(system, kAXFocusedUIElementAttribute) else {
-            requestManualAccessibility(pid: pid)
-            return .nothingSelected
+        // Chrome・Electron は、頼むまで Accessibility の情報を出さない（フォーカスのある要素すら無い）
+        // システム全体からの問い合わせは、Chrome などで失敗することがあるので、アプリにも直接聞く
+        let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(appElement, timeout)
+        guard let focused = element(system, kAXFocusedUIElementAttribute) ?? element(appElement, kAXFocusedUIElementAttribute) else {
+            guard NSRunningApplication(processIdentifier: pid)?.bundleURL.map(isChromium) == true else { return .none }
+            _ = requestAccessibility(pid: pid)
+            return .notReady
         }
         AXUIElementSetMessagingTimeout(focused, timeout)
 
@@ -61,16 +102,16 @@ enum SelectionReader {
         if strings(focused, "AXDOMClassList")?.contains(editContextDOMClass) == true {
             return .blockedByEditContext
         }
-        requestManualAccessibility(pid: pid)
-        return .nothingSelected
+        // 4. Chromium のアプリで、DOM 情報も選択もない = ツリーが作りかけ・たたんだ状態。
+        //    頼み直して、少し待てば読める（読み直しに価値あり）
+        if NSRunningApplication(processIdentifier: pid)?.bundleURL.map(isChromium) == true {
+            _ = requestAccessibility(pid: pid)
+            return .notReady
+        }
+        return .none
     }
 
     // MARK: 内部
-
-    /// 他のアプリが応答しないときに、ここで長く止まらないための上限（秒）
-    private static let timeout: Float = 0.25
-    /// Electron のアプリで、Accessibility を有効にするよう頼んだことのあるプロセス
-    private static var requestedManualAccessibility = Set<pid_t>()
 
     private static func boundsOfSelectedRange(_ el: AXUIElement) -> CGRect? {
         guard let range = value(el, kAXSelectedTextRangeAttribute),
@@ -81,12 +122,16 @@ enum SelectionReader {
         return r
     }
 
-    /// Electron のアプリは、頼まないと Accessibility の情報を出さない。次の読み取りから読めるよう、一度だけ頼む。
-    /// 失敗したときは印を付けないので、次の読み取りで又一次太できる（相手の都合で後から読めるようになるため）。
-    private static func requestManualAccessibility(pid: pid_t) {
-        guard !requestedManualAccessibility.contains(pid) else { return }
-        let err = AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), "AXManualAccessibility" as CFString, kCFBooleanTrue)
-        if err == .success { requestedManualAccessibility.insert(pid) }
+    /// 頼まないと Accessibility の情報を出さないアプリに頼む。もう有効なら何もしない。頼んだら true。
+    /// - Electron：AXManualAccessibility
+    /// - Chrome などの Chromium：AXEnhancedUserInterface（VoiceOver などと同じ合図）
+    private static func requestAccessibility(pid: pid_t) -> Bool {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, timeout)
+        if let v = value(app, "AXEnhancedUserInterface") as? Bool, v { return false }
+        AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+        return true
     }
 
     private static func value(_ el: AXUIElement, _ attribute: String) -> CFTypeRef? {
