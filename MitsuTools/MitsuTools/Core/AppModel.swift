@@ -19,6 +19,7 @@ final class AppModel {
             KeepAwakeModule(),
             InputSourceModule(),
             NotificationModule(),
+            HostsModule(),
         ]
     }
 
