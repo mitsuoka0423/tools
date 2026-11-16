@@ -56,7 +56,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func build() {
-        let titles = ["一般"] + AppModel.shared.modules.map(\.title) + ["アップデート"]
+        let titles = ["一般"] + AppModel.shared.modules.map(\.displayName) + ["アップデート"]
         paneWidth = Self.width(forTitles: titles)
 
         let tabs = NSTabViewController()
@@ -66,7 +66,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         tabs.addTabViewItem(item(id: "general", title: "一般", symbol: "gearshape", view: GeneralSettingsView()))
         for module in AppModel.shared.modules {
-            tabs.addTabViewItem(item(id: module.id, title: module.title, symbol: module.systemImage, view: module.settingsView()))
+            tabs.addTabViewItem(item(id: module.id, title: module.displayName, symbol: module.systemImage, view: module.settingsView()))
         }
         tabs.addTabViewItem(item(id: "update", title: "アップデート", symbol: "arrow.triangle.2.circlepath", view: UpdateSettingsView()))
 

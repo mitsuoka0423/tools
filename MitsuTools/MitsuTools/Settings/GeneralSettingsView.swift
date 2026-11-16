@@ -3,6 +3,7 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @State private var model = AppModel.shared
     private let permission = AccessibilityPermission.shared
+    private let diskAccess = FullDiskAccessPermission.shared
     private let config = ConfigFile.shared
     private let privacy = PrivacySettings.shared
 
@@ -27,7 +28,7 @@ struct GeneralSettingsView: View {
                     }
                 } label: {
                     Text("アクセシビリティ")
-                    Text("ウィンドウの移動と、選んだ履歴の自動貼り付けに必要です。")
+                    Text("ウィンドウの移動、自動コピー、選んだ履歴の自動貼り付けに必要です。")
                 }
                 if !permission.isTrusted {
                     // 確認ダイアログは、一度出したアプリには出ないことがある。そのときの入口。
@@ -37,6 +38,28 @@ struct GeneralSettingsView: View {
                     } label: {
                         Text("ダイアログが出ないとき")
                         Text("一覧で MitsuTools がオンなのに許可されない場合は、「−」で消してから許可し直してください。")
+                    }
+                }
+                LabeledContent {
+                    if diskAccess.isGranted {
+                        Label("許可済み", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        // フルディスクアクセスは、アプリから確認ダイアログを出せない。設定を開いてもらう。
+                        Button("システム設定を開く") { diskAccess.openSystemSettings() }
+                    }
+                } label: {
+                    Text("フルディスクアクセス")
+                    Text("「通知（試験中）」だけが使います。Notification Center に保存された通知を読むのに必要です。")
+                }
+                if !diskAccess.isGranted {
+                    // 一覧にアプリが出てこないことがあるので、そのときの入口（ドラッグで追加してもらう）
+                    LabeledContent {
+                        Button("アプリを Finder で表示") { diskAccess.revealSelfInFinder() }
+                            .buttonStyle(.link)
+                    } label: {
+                        Text("一覧に MitsuTools がないとき")
+                        Text("Finder で選択されたアプリを一覧へドラッグして追加してください。")
                     }
                 }
             }
@@ -70,7 +93,7 @@ struct GeneralSettingsView: View {
                         get: { model.isEnabled(module) },
                         set: { model.setEnabled($0, for: module) }
                     )) {
-                        Label(module.title, systemImage: module.systemImage)
+                        Label(module.displayName, systemImage: module.systemImage)
                     }
                 }
             }

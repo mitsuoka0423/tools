@@ -1,8 +1,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// アクセシビリティの許可が足りないときだけ、機能のペインの先頭に出すバナー。
-/// どの機能でも同じ見た目・同じ文言にそろえる。許可済みなら何も出さない。
+/// アクセシビリティの許可が足りないときだけ、機能のペインの先頭に出すお知らせ。
+///
+/// 許可の操作（許可する・システム設定・ Finder 表示）は「一般 › 権限」に一本化している
+/// （Single Source of Truth）。バナーは状態の気づきだけで、操作は一般タブへ運ぶ。
 struct PermissionBanner: View {
     /// その機能が、許可を何に使うか。例: 「ウィンドウを動かすのに使います。」
     let reason: String
@@ -10,22 +12,46 @@ struct PermissionBanner: View {
 
     var body: some View {
         if !permission.isTrusted {
-            Section {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .font(.title3)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("アクセシビリティの許可が必要です").fontWeight(.semibold)
-                        Text(reason).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("許可する…") { permission.request() }
-                }
-                .padding(.vertical, 2)
-            }
-            .listRowBackground(Color.orange.opacity(0.14))
+            PermissionNudge(permission: "アクセシビリティ", reason: reason)
         }
+    }
+}
+
+/// フルディスクアクセスの許可が足りないときだけ、機能のペインの先頭に出すお知らせ。
+/// 操作は「一般 › 権限」に一本化（`PermissionBanner` と同じ方針）。
+struct DiskAccessBanner: View {
+    /// その機能が、ファイル読みを何に使うか。
+    let reason: String
+    private let permission = FullDiskAccessPermission.shared
+
+    var body: some View {
+        if !permission.isGranted {
+            PermissionNudge(permission: "フルディスクアクセス", reason: reason)
+        }
+    }
+}
+
+/// 許可系バナーの共通の見た目。「許可の本体は一般タブにある」ので、操作持ちは「権限…」だけ。
+private struct PermissionNudge: View {
+    let permission: String
+    let reason: String
+
+    var body: some View {
+        Section {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.title3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(permission)の許可が必要です").fontWeight(.semibold)
+                    Text(reason).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("権限…") { SettingsWindowController.shared.show(pane: "general") }
+            }
+            .padding(.vertical, 2)
+        }
+        .listRowBackground(Color.orange.opacity(0.14))
     }
 }
 

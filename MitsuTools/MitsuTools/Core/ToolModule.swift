@@ -18,6 +18,8 @@ protocol ToolModule: AnyObject {
     var actions: [ShortcutAction] { get }
     /// Accessibility 権限が必要かどうか。
     var needsAccessibility: Bool { get }
+    /// まだ実験中の機能かどうか。名前に「（試験中）」が付いて、目立つ場所で見せる。
+    var isExperimental: Bool { get }
 
     /// モジュールを有効にしたときに呼ばれる。監視などを始める。
     func start()
@@ -40,6 +42,9 @@ protocol ToolModule: AnyObject {
 
 extension ToolModule {
     var needsAccessibility: Bool { false }
+    var isExperimental: Bool { false }
+    /// 人前に出す名前。実験中の機能には目印を付ける。
+    var displayName: String { isExperimental ? "\(title)（試験中）" : title }
     var showsMenuItemsWhenDisabled: Bool { false }
     func menuItems() -> AnyView { AnyView(EmptyView()) }
     func exportConfig() -> [(key: String, value: TOMLValue)] { [] }

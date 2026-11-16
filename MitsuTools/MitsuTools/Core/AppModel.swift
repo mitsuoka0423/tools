@@ -18,6 +18,7 @@ final class AppModel {
             LauncherModule(),
             KeepAwakeModule(),
             InputSourceModule(),
+            NotificationModule(),
         ]
     }
 
