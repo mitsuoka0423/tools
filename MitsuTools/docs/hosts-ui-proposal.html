@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hosts の画面：アプリの共通パターンに沿った改善案</title>
+<title>Hosts の画面：ラジオ式（案 v2）</title>
 <style>
 :root[data-theme="dark"], :root{
   color-scheme:dark;
@@ -29,38 +29,36 @@
 body{margin:0;background:var(--page);color:var(--label);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
 header{max-width:1180px;margin:auto;padding:26px 20px 2px}
 h1{font-size:22px;margin:0 0 6px}
-.lead{color:var(--label2);margin:0;max-width:880px}
+.lead{color:var(--label2);margin:0;max-width:900px}
 nav{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 nav a{color:var(--label);text-decoration:none;background:var(--box);padding:4px 12px;border-radius:999px;font-size:13px}
 .seg{margin-left:auto;display:inline-flex;padding:3px;border-radius:999px;background:var(--box);gap:2px}
 .seg button{border:0;background:transparent;color:var(--label);font:inherit;font-size:13px;padding:3px 12px;border-radius:999px;cursor:pointer}
-.seg button.on{background:var(--btn);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.seg button.on{background:var(--btn)}
 main{max-width:1180px;margin:auto;padding:8px 20px 70px}
 section{margin-top:36px}
 h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--sep)}
 h3{font-size:15px;margin:18px 0 6px}
 p{margin:6px 0}
 ul{margin:6px 0;padding-left:20px} li{margin:4px 0}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;align-items:start}
+ol{padding-left:22px} li{margin:6px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;align-items:start}
 .muted{color:var(--label2)} .small{font-size:12px}
 code{font:12px ui-monospace,Menlo,monospace;background:var(--box);padding:1px 6px;border-radius:5px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{border-bottom:1px solid var(--sep);padding:6px 8px;text-align:left;vertical-align:top}
 th{color:var(--label2);font-weight:600;white-space:nowrap}
 .good{color:var(--green)} .warn{color:var(--orange)} .bad{color:var(--red)}
-.tag{display:inline-block;font-size:11px;padding:0 8px;border-radius:999px;background:var(--box);color:var(--label2)}
+.why{background:var(--box);border-radius:12px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
 
-/* ---- 設定ウィンドウ（スクリーンショット準拠のモック） ---- */
 .win{background:var(--win);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.45);overflow:hidden;max-width:1060px}
 .titlebar{height:38px;background:var(--titlebar);display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--sep)}
 .titlebar .dots{position:absolute;left:12px;display:flex;gap:8px}
 .dot{width:12px;height:12px;border-radius:50%}
 .titlebar b{font-size:13px;font-weight:600}
-.tabbar{display:flex;justify-content:center;gap:6px;padding:10px 14px 12px;background:var(--win);border-bottom:1px solid var(--sep);font-size:10.5px}
+.tabbar{display:flex;justify-content:center;gap:6px;padding:10px 14px 12px;border-bottom:1px solid var(--sep);font-size:10.5px}
 .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--label2);padding:5px 10px;border-radius:8px;min-width:56px}
-.tab svg{width:19px;height:19px;fill:currentColor}
 .tab.on{background:var(--btn);color:var(--label)}
-.tab.on svg{fill:var(--accent)}
 .pane{padding:22px 30px 26px;background:var(--content)}
 .sec{margin:0 auto 18px;max-width:960px}
 .sec>.sh{font-size:13.5px;font-weight:700;margin:0 0 7px 2px}
@@ -72,19 +70,16 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
 .row .lbl .sub{font-size:11px;color:var(--label2)}
 .row .grow{flex:1}
 .btn{border:0;background:var(--btn);border-radius:6px;padding:4px 12px;font:12.5px inherit;color:var(--label);cursor:pointer;white-space:nowrap;box-shadow:0 0 0 .5px var(--btn-edge)}
-.btn.link{background:transparent;box-shadow:none;color:var(--accent);padding:4px 4px}
 .ico{color:var(--label2);font-size:14px;cursor:pointer}
 .sw{width:38px;height:22px;border-radius:999px;background:var(--label3);position:relative;flex:none}
 .sw i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .sw.on{background:var(--accent)} .sw.on i{left:18px}
-.chk{color:var(--accent);font-weight:700;width:15px;flex:none;text-align:center}
+.rd{width:16px;height:16px;border-radius:50%;border:1.6px solid var(--label3);flex:none;position:relative}
+.rd.on{border-color:var(--accent)} .rd.on::after{content:"";position:absolute;inset:3.5px;border-radius:50%;background:var(--accent)}
 .mono{font:12.5px/2 ui-monospace,Menlo,monospace}
 .footer-note{font-size:11.5px;color:var(--label2);margin:7px 2px 0;line-height:1.5}
-.dotstate{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--label3);flex:none}
-.dotstate.on{border-color:var(--green);background:var(--green)}
 
-/* NSAlert モック */
-.alert{width:430px;background:var(--alert);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.5);padding:20px 20px 16px;margin-top:14px}
+.alert{width:430px;background:var(--alert);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.5);padding:20px 20px 16px;margin-top:12px}
 .alert .top{display:flex;gap:14px;align-items:flex-start}
 .appicon{width:44px;height:44px;border-radius:9px;background:linear-gradient(135deg,#2d7dff,#7b4dff);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
 .alert .msg{font-size:13.5px;font-weight:700;margin:0 0 6px}
@@ -95,48 +90,40 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
 .alert .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
 .btn.def{background:var(--accent);color:#fff;box-shadow:none}
 
-/* メニュー */
-.menu{position:relative;width:250px;background:var(--menu);backdrop-filter:blur(24px);border-radius:7px;box-shadow:0 14px 40px rgba(0,0,0,.5),0 0 0 .5px rgba(0,0,0,.4);padding:5px;font-size:13px;margin-top:10px}
+.menu{position:relative;width:260px;background:var(--menu);backdrop-filter:blur(24px);border-radius:7px;box-shadow:0 14px 40px rgba(0,0,0,.5),0 0 0 .5px rgba(0,0,0,.4);padding:5px;font-size:13px;margin-top:10px}
 .mi{display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:5px}
-.mi .mk{width:13px;flex:none;text-align:center;font-weight:700}
+.mi.dis{color:var(--label2)}
 .mi .cnt{margin-left:auto;color:var(--label2);font-size:11px}
 .msep{height:1px;background:var(--sep);margin:5px 8px}
-
-.why{background:var(--box);border-radius:12px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
-.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 9px;border-radius:6px;margin-right:7px;background:var(--green);color:#fff}
-.badge.b2{background:var(--orange)} .badge.b3{background:var(--label3)}
-footer{max-width:1180px;margin:auto;padding:0 20px 60px;color:var(--label2);font-size:12px}
 </style>
 </head>
 <body>
 <header>
-  <h1>Hosts の画面：アプリの共通パターンに沿った改善案</h1>
-  <p class="lead">前回の案はアプリ全体の見え方（Form＋Section＋行、LabeledContent、アイコンボタン、地味なボタン）から離れていました。今回は制約を <b>「変更してよいのは Hosts ペインの内部だけ。ウィンドウ・タブ・共通ウィジェット・文言の型は他の機能と同じまま」</b> として、スクリーンショットの組立てをそのままベースに組み直しました。</p>
+  <h1>Hosts の画面：ラジオ式（案 v2）</h1>
+  <p class="lead">ご方針を反映：<b>①同時に有効になることはないのだから、スイッチ（2^n パターンに見える）ではなくラジオボタン（実態の n+1 を正直に見せる）を原則</b>。<b>②メニューバーは「何が選ばれているか」の表示のみ。選択・適用の操作は設定画面で行う</b>。ウィンドウ・タブ・行の型などアプリの共通部分はそのまま、Hosts ペイン内部と確認ダイアログ（NSAlert）だけで成立する案です。</p>
   <nav>
-    <a href="#idiom">準拠する型</a><a href="#now">現状</a><a href="#plan1">案1（推奨）</a><a href="#plan2">案2</a><a href="#alert">確認の共通形</a><a href="#menu">メニュー</a><a href="#compare">比較</a><a href="#check">すり合わせ項目</a>
+    <a href="#rule">原則の更新</a><a href="#plan">案 v2：ラジオ式</a><a href="#alert">適用の確認</a><a href="#menu">メニュー（表示のみ）</a><a href="#impl">実装メモ</a><a href="#check">すり合わせ点</a>
     <span class="seg"><button id="tDark" class="on">ダーク</button><button id="tLight">ライト</button></span>
   </nav>
 </header>
 <main>
 
-<section id="idiom">
-  <h2>準拠する型（アプリ既存の部品のみを使う）</h2>
+<section id="rule">
+  <h2>原則の更新（v1 からの違い）</h2>
   <div class="why">
     <table>
-      <tr><th>場面</th><th>使う型（既存）</th><th>出典</th></tr>
-      <tr><td>状態の1行表示</td><td>Section なしの <code>LabeledContent</code>（左アイコン＋名前/説明 sub、右に Button）</td><td>いまの Hosts・一般の権限行</td></tr>
-      <tr><td>一覧行</td><td><code>ForEach</code> の行：ラベル＋sub、右端に pencil / minus.circle のアイコンボタン</td><td>AppListEditor（除外アプリ一覧）</td></tr>
-      <tr><td>選択肢の1項目</td><td>行末の <code>Toggle</code>（緑 switch）</td><td>各ペインのトグル</td></tr>
-      <tr><td>文章の節</td><td>Section header 太字 + <code>.grouped</code> + 小さいグレー footer</td><td>全ペイン共通</td></tr>
-      <tr><td>危険操作の確認</td><td><code>NSAlert</code>（pane の外。アプリ全体で同じ形）</td><td>EditContextGuide・AppModel.perform</td></tr>
-      <tr><td>やらない</td><td class="bad">状態カード・borderedProminent ボタン・行内 TextField 編集・チェックマーク列など、他のペインに存在しない形の追加</td><td>—</td></tr>
+      <tr><th></th><th>v1 まで</th><th>v2（ご方針）</th></tr>
+      <tr><td>排他的選択の表現</td><td>行末スイッチ（n 個の ON/OFF ＝ 2^n パターンに見える。実際は n+1）</td><td class="good"><b>ラジオ</b>：常に1つだけ●。「なし」も1つの選択肢として並ぶ（n+1 をそのまま見せる）</td></tr>
+      <tr><td>ラジオが表すもの</td><td>—</td><td><b>hosts に今効いているもの</b>（=/etc/hosts の真実）。編集中の「仮選び」ではない</td></tr>
+      <tr><td>選択（適用）の操作場所</td><td>設定画面＋メニュー両方</td><td class="good"><b>設定画面のみ</b>。メニューは状態表示＋設定画面への入口だけ</td></tr>
+      <tr><td>書き込みのタイミング</td><td>—</td><td>ラジオを切り替えたときだけ確認画面 → 承認後にパスワード → hosts へ</td></tr>
+      <tr><td>アプリの共通型</td><td>Form/Section/行/LabeledContent/NSAlert</td><td>そのまま（変更なし）</td></tr>
     </table>
-    <p class="small muted">※ リポジトリに「デザイン原則」の単独文書はありません。README の方針（Apple 標準のみ/macOS ネイティブ/dotfiles）と、各ペインの共通イディオム（PermissionBanner・AppListEditor の注釈「どの機能でも同じ見た目・同じ文言にそろえる」）が事実上の原則なので、それに従います。</p>
   </div>
 </section>
 
-<section id="now">
-  <h2>いまの画面（revert 後＝スイッチ式。この HTML のベース）</h2>
+<section id="plan">
+  <h2>案 v2：ラジオ式の Hosts ペイン</h2>
   <div class="grid2">
     <div class="win">
       <div class="titlebar"><span class="dots"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span></span><b>Hosts</b></div>
@@ -144,190 +131,120 @@ footer{max-width:1180px;margin:auto;padding:0 20px 60px;color:var(--label2);font
       <div class="pane">
         <div class="sec"><div class="sh">プロファイル</div>
           <div class="box">
-            <div class="row"><span class="sw on"><i></i></span><span class="lbl">開発<span class="sub">3 行</span></span><span class="grow"></span><span class="good small">適用中</span><span class="ico">✎</span><span class="ico">⊖</span></div>
-            <div class="row"><span class="sw"><i></i></span><span class="lbl">仕入先<span class="sub">1 行</span></span><span class="grow"></span><span class="ico">✎</span><span class="ico">⊖</span></div>
+            <div class="row click"><span class="rd on"></span><span class="lbl">開発<span class="sub">3 行 ・ 適用中 ・ 編集済み（未反映）</span></span><span class="grow"></span><span class="ico">✎</span><span class="ico">⊖</span></div>
+            <div class="row click"><span class="rd"></span><span class="lbl">仕入先<span class="sub">1 行</span></span><span class="grow"></span><span class="ico">✎</span><span class="ico">⊖</span></div>
+            <div class="row click"><span class="rd"></span><span class="lbl">なし<span class="sub">hosts に MitsuTools の行を入れない</span></span></div>
             <div class="row" style="padding-top:8px;padding-bottom:12px"><button class="btn">追加…</button></div>
           </div>
-          <div class="footer-note">スイッチをオンにすると、そのプロファイルが /etc/hosts に入ります（管理者のパスワードが要ります）。オフにすると、管理していた区間だけが取り除かれます。</div>
+          <div class="footer-note">● が今 hosts に効いているものです。他の行を選ぶと、変わる行を確認する画面が出ます。承認するまで hosts は変わりません。</div>
         </div>
-        <div class="sec"><div class="sh">中身</div>
+        <div class="sec"><div class="sh">中身：開発</div>
           <div class="box">
             <div class="row"><span class="mono">127.0.0.1 dev.local<br>0.0.0.0 ads.example.com<br>10.2.0.31 db.internal</span><span class="grow"></span></div>
-            <div class="row"><button class="btn">編集</button><span class="grow"></span><span class="small muted">読み取り専用。当てても変わりません</span></div>
+            <div class="row"><button class="btn">編集</button><span class="grow"></span><span class="small muted">読み取り専用。編集は hosts.json にだけ保存され、hosts は変わりません</span></div>
           </div>
         </div>
         <div class="sec"><div class="sh">オプション</div>
           <div class="box">
             <div class="row"><span class="sw on"><i></i></span><span class="lbl">切り替えるときに DNS のキャッシュを消す</span></div>
-            <div class="row"><span class="grow"></span><button class="btn">直前に戻す</button></div>
+            <div class="row"><span class="grow"></span><button class="btn">直前の内容に戻す…</button></div>
           </div>
-          <div class="footer-note">「管理区間」…内部語がそのまま出ている（現状のフッター文）</div>
+          <div class="footer-note">最後に書き換える直前の内容は /etc/hosts.mitsutools.bak から復元できます。</div>
         </div>
       </div>
     </div>
     <div class="why">
-      <h3 style="margin-top:0">この画面の評価</h3>
+      <h3 style="margin-top:0">読み方</h3>
       <ul>
-        <li class="good">よかった：レイアウトはアプリの型どおり（Section＋行＋switch＋アイコンボタン）。編集が読み取り専用なのもよい</li>
-        <li class="bad">一番の問題：スイッチ=即書き込みで、触った途端に管理者パスワードを聞かれる（暴発）</li>
-        <li class="bad">スイッチが「命令」なのに「適用中」表示も同じ場所にあり、状態と動作が混ざる（オフにすると解除される、が直感とズレる）</li>
-        <li class="warn">「管理区間」など内部語がフッターに出る</li>
-        <li class="warn">プロファイルを編集したのに適用していない（未反映）ことが分からない</li>
+        <li><b>● ラジオ＝hosts の真実。</b>「仮の選択」状態は作らない。押すと→確認→承認で初めて動く。取り消せば ● は元の場所に残る</li>
+        <li><b>「なし」行</b>で n+1 番目（未適用）を正直に表現。「適用をやめる」ボタンは不要になる（解除もラジオの切り替えと同じ作法でできる）</li>
+        <li>編集してまだ hosts に入れていないものは sub に<b>「編集済み（未反映）」</b>。● が付いていても「中身が変わっている」ことが1行で分かる</li>
+        <li>「中身」は開かれているプロファイル（● のもの、または最後にタップした行）のプレビュー。編集は現状のまま読み取り専用＋「編集」ボタン</li>
+        <li>● の行をもう一度押すと「今の内容で再適用」＝未反映のときにこれで反映する（差分がゼロなら「変わりありません」とだけ出て、パスワードは聞きません）</li>
+        <li>内部語なし：「管理区間」は画面に出さない（「MitsuTools の行」と書く）</li>
       </ul>
-      <p class="small muted">→ 案1 は、この画面のまま「スイッチ=確認へのはじまり」に変え、行の sub に状態を出し、内部語を消す最小の変更です。</p>
-    </div>
-  </div>
-</section>
-
-<section id="plan1">
-  <h2><span class="badge">案1・推奨</span>スイッチは残す。押したら必ず「変わる行」の確認</h2>
-  <div class="grid2">
-    <div>
-      <div class="win">
-        <div class="titlebar"><span class="dots"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span></span><b>Hosts</b></div>
-        <div class="tabbar"><span class="tab">一般</span><span class="tab">クリップボード</span><span class="tab">自動コピー</span><span class="tab">ウィンドウ</span><span class="tab">通知（試験中）</span><span class="tab on">Hosts</span></div>
-        <div class="pane">
-          <div class="sec"><div class="sh">プロファイル</div>
-            <div class="box">
-              <div class="row"><span class="sw on"><i></i></span><span class="lbl">開発<span class="sub">3 行 ・ 適用中</span></span><span class="grow"></span><span class="ico">✎</span><span class="ico">⊖</span></div>
-              <div class="row click"><span class="sw"><i></i></span><span class="lbl">仕入先<span class="sub">1 行 ・ hosts へ適用待ち（編集済み）</span></span><span class="grow"></span><span class="ico">✎</span><span class="ico">⊖</span></div>
-              <div class="row" style="padding-top:8px;padding-bottom:12px"><button class="btn">追加…</button></div>
-            </div>
-            <div class="footer-note">スイッチをオンにすると、確認画面が出てから /etc/hosts に書きます。取り消すとスイッチは戻ります。</div>
-          </div>
-          <div class="sec"><div class="sh">中身</div>
-            <div class="box">
-              <div class="row"><span class="mono">127.0.0.1 dev.local<br>0.0.0.0 ads.example.com<br>10.2.0.31 db.internal</span><span class="grow"></span></div>
-              <div class="row"><button class="btn">編集</button><span class="grow"></span><span class="small muted">編集は hosts.json だけ。hosts は変わりません</span></div>
-            </div>
-          </div>
-          <div class="sec"><div class="sh">オプション</div>
-            <div class="box">
-              <div class="row"><span class="sw on"><i></i></span><span class="lbl">切り替えるときに DNS のキャッシュを消す</span></div>
-              <div class="row"><span class="grow"></span><button class="btn">直前の内容に戻す…</button></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="small muted">※ いまのスイッチ版 のままとの違いは 2 つだけ：①スイッチ ON/OFF が即書き込みでなく確認ダイアログ経由 ②行の sub に適用状態（適用中／適用待ち）を表示。レイアウトは共通型のまま。</p>
-    </div>
-    <div class="why">
-      <h3 style="margin-top:0">何が変わるか</h3>
-      <ul>
-        <li><b>暴発ゼロ：</b>スイッチは「合図」。実際には変わらない。取り消し＝無かったこと</li>
-        <li>スイッチの意味は1つ（適用/未適用）。選択と分けずに済む</li>
-        <li>編集欄は読み取り専用＋「編集」ボタン（いまのスイッチ版 のまま。誤変更しにくい）</li>
-        <li>状態行の「何を待っているか」は行の sub 1 行で表す（カードにしない）</li>
-        <li>文言：「適用をやめる」の確認のみ新設。「管理区間」は内部語なので画面に出さない（※いまのスイッチ版 ではまだ footer に残っていた→削除）</li>
-      </ul>
-      <h3>確認ダイアログ（NSAlert＝アプリ共通の形）</h3>
-      <div class="alert" style="margin-top:4px">
-        <div class="top"><span class="appicon">M</span><div>
-          <p class="msg">「開発」を /etc/hosts に適用しますか？</p>
-          <div class="diff"><div class="a">＋ 127.0.0.1 dev.local</div><div class="a">＋ 0.0.0.0 ads.example.com</div><div class="d">－ 10.0.0.5 old.local</div></div>
-          <div class="note">このあと macOS に管理者のパスワードを聞かれます。<br>localhost など MitsuTools が管理していない行はそのまま残ります。</div>
-          <div class="btns"><button class="btn">取り消し</button><button class="btn def">適用</button></div>
-        </div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="plan2">
-  <h2><span class="badge b2">案2</span>「選んでから適用」の2段（スイッチをやめ、行の末尾に「適用」ボタン）</h2>
-  <div class="grid2">
-    <div class="win">
-      <div class="titlebar"><span class="dots"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span></span><b>Hosts</b></div>
-      <div class="tabbar"><span class="tab">一般</span><span class="tab">クリップボード</span><span class="tab">自動コピー</span><span class="tab">通知（試験中）</span><span class="tab on">Hosts</span></div>
-      <div class="pane">
-        <div class="sec"><div class="sh">プロファイル</div>
-          <div class="box">
-            <div class="row click"><span class="lbl">開発<span class="sub">3 行 ・ 適用中</span></span><span class="grow"></span><button class="btn" style="opacity:.4" disabled>適用</button><span class="ico">✎</span><span class="ico">⊖</span></div>
-            <div class="row click"><span class="lbl">仕入先<span class="sub">1 行 ・ 選んでいます</span></span><span class="grow"></span><button class="btn">適用</button><span class="ico">✎</span><span class="ico">⊖</span></div>
-            <div class="row click"><span class="lbl">本社バックアップ<span class="sub">2 行</span></span><span class="grow"></span><button class="btn">適用</button><span class="ico">✎</span><span class="ico">⊖</span></div>
-            <div class="row" style="padding-top:8px;padding-bottom:12px"><button class="btn">追加…</button><span class="grow"></span><button class="btn" style="opacity:.4" disabled>適用をやめる…</button></div>
-          </div>
-          <div class="footer-note">「適用」を押すと確認画面が出ます。いま効いているものにはボタンが出ません。</div>
-        </div>
-        <div class="sec"><div class="sh">中身</div>
-          <div class="box"><div class="row"><span class="mono">10.2.0.31 api.supplier.jp</span><span class="grow"></span></div><div class="row"><button class="btn">編集</button></div></div>
-        </div>
-        <div class="sec"><div class="sh">オプション</div>
-          <div class="box"><div class="row"><span class="sw on"><i></i></span><span class="lbl">切り替えるときに DNS のキャッシュを消す</span></div><div class="row"><span class="grow"></span><button class="btn">直前の内容に戻す…</button></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="why">
-      <h3 style="margin-top:0">案1 との違い</h3>
-      <ul>
-        <li>スイッチがないので「状態の二重表示」が不要。行末の <code>適用</code> ボタンが命令そのもの</li>
-        <li>ただし行が混む（適用＋✎＋⊖＋状態）。他の一覧より控件が多い</li>
-        <li>「適用中」の視覚的しるしが sub テキストだけになる（スイッチ版より弱い）</li>
-      </ul>
-      <p class="small muted">NSAlert の確認（変わる行＋パスワード予告）は案1 と同じものを使う。</p>
+      <p class="small muted">ラジオの見た目は既存の型に収める形（行の先頭に <code>circle</code>／<code>smallcircle.filled.circle</code> アイコン、行タップで選択）を予定。NSButton 本来の radio group は行内アイコンボタンと相性が悪いため、アイコン表現で同じ作法を出します。</p>
     </div>
   </div>
 </section>
 
 <section id="alert">
-  <h2>確認・エラーの扱い（両案共通）</h2>
-  <table>
-    <tr><th>操作</th><th>流れ</th><th>既存の何に習うか</th></tr>
-    <tr><td>適用（スイッチ/ボタン）</td><td>NSAlert：変わる行（＋/－/＝）＋「このあと管理者のパスワード」 → [適用] → OS パスワード</td><td>AppModel.perform のオンオフ確認、EditContextGuide の確認形</td></tr>
-    <tr><td>適用をやめる…</td><td>NSAlert：取り除かれる行数を表示 → [やめる] → OS パスワード</td><td>同上</td></tr>
-    <tr><td>直前の内容に戻す…</td><td>NSAlert：bak パスと注意 → [戻す] → OS パスワード</td><td>Finder で表示 等の補助ボタン型</td></tr>
-    <tr><td>パスワード取り消し</td><td>何も出さない（スイッチは戻る／状態はそのまま）。怒らない</td><td>—</td></tr>
-    <tr><td>書き込み失敗</td><td>NSAlert の警告のみ</td><td>既存の report と同じ</td></tr>
-    <tr><td>編集</td><td>「編集」→ TextEditor →「完了／やめる」。hosts.json にのみ保存。<b>hosts は不変</b>なので誤変更の不安なし</td><td>いまのスイッチ版 のまま</td></tr>
-  </table>
-</section>
-
-<section id="menu">
-  <h2>メニューバー（両案共通・最小の変更）</h2>
+  <h2>適用・解除の確認（NSAlert＝アプリ共通の形）</h2>
   <div class="grid2">
-    <div class="menu">
-      <div class="mi"><span class="mk"></span>選択を自動でコピー</div>
-      <div class="msep"></div>
-      <div class="mi"><span class="mk" style="color:var(--green)">✓</span><b>開発</b></div>
-      <div class="mi"><span class="mk"></span>仕入先</div>
-      <div class="mi"><span class="mk"></span>本社バックアップ</div>
-      <div class="msep"></div>
-      <div class="mi"><span class="mk"></span>適用をやめる<span class="cnt">確認画面へ</span></div>
+    <div>
+      <div class="alert">
+        <div class="top"><span class="appicon">M</span><div>
+          <p class="msg">「仕入先」を /etc/hosts に適用しますか？</p>
+          <div class="diff"><div class="a">＋ 10.2.0.31 api.supplier.jp</div><div class="d">－ 127.0.0.1 dev.local</div><div class="d">－ 0.0.0.0 ads.example.com</div></div>
+          <div class="note">このあと macOS に管理者のパスワードを聞かれます。<br>localhost など MitsuTools の行でないものはそのまま残ります。</div>
+          <div class="btns"><button class="btn">取り消し</button><button class="btn def">適用</button></div>
+        </div></div>
+      </div>
+      <div class="alert">
+        <div class="top"><span class="appicon">M</span><div>
+          <p class="msg">「なし」に切り替えますか？</p>
+          <div class="diff"><div class="d">－ 127.0.0.1 dev.local</div><div class="d">－ 0.0.0.0 ads.example.com</div><div class="d">－ 10.2.0.31 db.internal</div></div>
+          <div class="note">MitsuTools の行だけが hosts から無くなります。</div>
+          <div class="btns"><button class="btn">取り消し</button><button class="btn def">切り替える</button></div>
+        </div></div>
+      </div>
     </div>
-    <ul class="muted small">
-      <li>✓ は「いま hosts に効いているもの」だけ（変更なし）</li>
-      <li>クリックで適用→<b>同じ NSAlert 確認</b>（メニューからでも暴発しない）</li>
-      <li>「管理区間を解除」→<b>「適用をやめる」</b>と言い換え（内部語をやめる）</li>
-      <li>「Hosts の設定…」は<b>足さない</b>（他の機能にも無い項目なので。設定はタブから開く運用を崩さない）</li>
+    <ul>
+      <li>取り消し＝● は動かず、パスワードも出ない（何もなかったことにする）</li>
+      <li>差分がゼロの再適用は「変わる行はありません」とだけ表示して終わり（パスワードを聞かない）</li>
+      <li>失敗（権限など）だけ警告する</li>
     </ul>
   </div>
 </section>
 
-<section id="compare">
-  <h2>比較</h2>
+<section id="menu">
+  <h2>メニューバー：選ばれているものの表示だけ</h2>
+  <div class="grid2">
+    <div>
+      <div class="menu">
+        <div class="mi dis"><span>Hosts：適用中「開発」</span><span class="cnt">3 行</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span>Hosts の設定…</span></div>
+      </div>
+      <div class="menu" style="margin-top:12px">
+        <div class="mi dis"><span>Hosts：未適用</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span>Hosts の設定…</span></div>
+      </div>
+    </div>
+    <ul>
+      <li>プロファイルの並ぶクリック可能な一覧は<b>廃止</b>（ご方針「選択は設定画面で行う」）</li>
+      <li>状態は1行のテキスト表示のみ（グレーの無効項目）。クリックも権限ダイアログも起きない</li>
+      <li>入口として「Hosts の設定…」だけ（タブを開く。設定画面へ飛ぶ導線は EditContext の案内と同じ流儀）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="impl">
+  <h2>実装メモ（変更範囲は Hosts 機能の内部だけ）</h2>
   <table>
-    <tr><th></th><th>案1：スイッチ＋確認</th><th>案2：行末「適用」ボタン</th><th>現状（いまのスイッチ版）</th></tr>
-    <tr><td>アプリの型との一致</td><td class="good">◎（いまのスイッチ版 と同じ控件構成）</td><td>○（行末に通常ボタンを追加するだけ）</td><td>◎</td></tr>
-    <tr><td>暴発（意図しない hosts 変更）</td><td class="good">無（確認必須）</td><td class="good">無（確認必須）</td><td class="bad">有（即パスワード）</td></tr>
-    <tr><td>適用状態の一目で分かる度</td><td>◎ スイッチ＋sub</td><td>○ sub テキストのみ</td><td>○</td></tr>
-    <tr><td>誤った編集への不安</td><td class="good">低（読み取り専用＋編集ボタン）</td><td class="good">低</td><td>低</td></tr>
-    <tr><td>差分の大きさ（実装）</td><td class="good">小（確認の追加＋sub＋文言）</td><td>中（行の作り替え）</td><td>—</td></tr>
+    <tr><th>いま（スイッチ式）</th><th>案 v2</th></tr>
+    <tr><td>行末 <code>Toggle</code>（appliedSwitch）＋右に「適用中」文字＋「追加…」</td><td>行頭ラジオアイコン＋「なし」行。<code>Toggle</code> は DNS オプション以外から消える</td></tr>
+    <tr><td>スイッチ ON→即 <code>apply</code>（パスワード直行）</td><td>行タップ→NSAlert 確認→承認後 <code>apply</code>（confirmAndApply に一本化）</td></tr>
+    <tr><td>「適用をやめる」はスイッチの OFF</td><td>「なし」ラジオへ切り替え＝同じ確認経由。専用のボタンを作らない</td></tr>
+    <tr><td>メニュー：全プロファイルクリック→即適用＋「管理区間を解除」</td><td>メニュー：状態1行（無効項目）＋「Hosts の設定…」のみ</td></tr>
+    <tr><td>中身：読み取り専用＋編集ボタン</td><td>同じ（変えない）。開く対象は● or 最後にタップした行</td></tr>
+    <tr><td>フッターの「管理区間」語</td><td>「MitsuTools の行」に統一</td></tr>
   </table>
-  <p><b>推奨：案1。</b>既存の いまのスイッチ版 の画面を崩さず、危険だった「スイッチ=即書き込み」を確認経由に変える最小の変更です。</p>
+  <p class="small muted">共通部品（Form/Section/LabeledContent/Button/アイコン/NSAlert）とウィンドウ・タブの変更はゼロ。データ（hosts.json・config.toml・bak・osascript・DNS flush）も不変。</p>
 </section>
 
 <section id="check">
   <h2>すり合わせたい点</h2>
   <ol>
-    <li>案1 / 案2 のどちらにするか（他に変えたい形があれば）</li>
-    <li>確認ダイアログの文言：「変わる行」の表示は ＋/－/＝ の3種で足りるか（行が多いとき「ほか n 行」の省略でよいか）</li>
-    <li>パスワードを取り消したとき、スイッチは「押す前」に戻る（＝何も起きない）——これでよいですか</li>
-    <li>「適用待ち（編集済み）」sub の言い回し（「 hosts に未反映」等）</li>
-    <li>メニューの「適用をやめる」でよいか</li>
+    <li>ラジオ＝「hosts の真実」（仮選び状態なし）という理解で合っていますか。合っていれば「編集済み（未反映）」は sub の注意書きで表現します</li>
+    <li>「なし」行の文言：<code>なし（hosts に MitsuTools の行を入れない）</code> でよいですか</li>
+    <li>メニュー：<code>Hosts：適用中「開発」 3 行</code>／<code>Hosts：未適用</code> ＋ <code>Hosts の設定…</code> の2項目だけでよいですか</li>
+    <li>「中身」を開く対象：既定は●（適用中）の行。他の行をタップしたらプレビューだけ動く（●は動かない）——でよいですか</li>
+    <li>差分ゼロの再適用はパスワードを聞かない——でよいですか</li>
   </ol>
+  <p>OK（または修正点）をいただければ、この案 v2 を Hosts ペイン内部＋NSAlert＋メニュー表示として実装します。</p>
 </section>
-
-<footer>実装範囲：HostsModule.swift / HostsFile.swift の内部と NSAlert 文言のみ。共通部品（Form, Section, LabeledContent, Toggle, アイコンボタン, PermissionBanner 型）とウィンドウ/タブは一切変更しません。</footer>
 </main>
 <script>
 const root=document.documentElement;
