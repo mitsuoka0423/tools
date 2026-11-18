@@ -196,7 +196,7 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
   <div class="grid2">
     <div>
       <div class="menu">
-        <div class="mi dis"><span>Hosts：適用中「開発」</span><span class="cnt">3 行</span></div>
+        <div class="mi dis"><span>Hosts：適用中「開発」</span></div>
         <div class="msep"></div>
         <div class="mi"><span>Hosts の設定…</span></div>
       </div>
@@ -229,15 +229,15 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
 </section>
 
 <section id="check">
-  <h2>すり合わせたい点</h2>
+  <h2>確定内容（合意済み・実装済み）</h2>
   <ol>
-    <li>ラジオ＝「hosts の真実」（仮選び状態なし）という理解で合っていますか。合っていれば「編集済み（未反映）」は sub の注意書きで表現します</li>
-    <li>「なし」行の文言：<code>なし（hosts に MitsuTools の行を入れない）</code> でよいですか</li>
-    <li>メニュー：<code>Hosts：適用中「開発」 3 行</code>／<code>Hosts：未適用</code> ＋ <code>Hosts の設定…</code> の2項目だけでよいですか</li>
-    <li>「中身」を開く対象：既定は●（適用中）の行。他の行をタップしたらプレビューだけ動く（●は動かない）——でよいですか</li>
-    <li>差分ゼロの再適用はパスワードを聞かない——でよいですか</li>
+    <li>ラジオ＝ hosts の真実（仮選び状態なし）。編集後の未反映は sub の「適用中（編集した内容の適用待ち）」で表す</li>
+    <li>「なし」行：なし（hosts に MitsuTools の行を入れない）</li>
+    <li>メニュー：<code>Hosts：適用中「開発」</code>／<code>Hosts：未適用</code> ＋ <code>Hosts の設定…</code> のみ。<b>行数も中身も出さない</b></li>
+    <li>プロファイル行の説明に<b>行数は出さない</b>。中身セクションは廃止し、行の「見る」で他アプリに委譲／「ファイルを編集…」で hosts.json を直接編集</li>
+    <li>差分ゼロの再適用はパスワードを聞かない</li>
   </ol>
-  <p>OK（または修正点）をいただければ、この案 v2 を Hosts ペイン内部＋NSAlert＋メニュー表示として実装します。</p>
+  <p class="small muted">実装: ブランチ fix/autocopy-vscode-editcontext（ラジオ式 Hosts としてコミット済み）。</p>
 </section>
 </main>
 <script>
