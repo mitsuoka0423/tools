@@ -13,6 +13,8 @@ final class HostsSettings {
     var appliedProfileName: String?
     /// 管理区間があるか（読むだけ）
     var hasManagedBlock: Bool = false
+    /// 特権ヘルパーの状況（読むだけ）
+    var helperState: HostsHelper.State = .notInstalled
 }
 
 /// /etc/hosts のプロファイルを切り替える。
@@ -43,11 +45,13 @@ final class HostsModule: ToolModule {
         let state = HostsFile.read().state
         settings.appliedProfileName = state.appliedProfileName
         settings.hasManagedBlock = state.hasManagedBlock
+        settings.helperState = HostsHelper.state()
     }
 
     // MARK: 適用
 
     /// プロファイルを適用する。nil なら管理区間を削除する（解除）。
+    /// ヘルパーが入っていればそれ経由（パスワード不要）、いなければ osascript（パスワード）で書く。
     func apply(_ profile: HostsProfile?) {
         NSApp.activate()
         let content: String
@@ -56,14 +60,34 @@ final class HostsModule: ToolModule {
         } else {
             content = HostsFile.contentWithoutManagedBlock()
         }
+        if HostsHelper.state() == .active {
+            Task { @MainActor in
+                do {
+                    try await HostsHelper.write(content: content, flushDNS: settings.flushDNS)
+                    adopted(profile)
+                } catch {
+                    // ヘルパーがうまく動かないときは、パスワード方式に戻す
+                    writeWithPassword(content, profile)
+                }
+            }
+        } else {
+            writeWithPassword(content, profile)
+        }
+    }
+
+    private func writeWithPassword(_ content: String, _ profile: HostsProfile?) {
         do {
             try HostsFile.write(content: content, flushDNS: settings.flushDNS)
-            settings.selectedProfileName = profile?.name ?? ""
-            ConfigFile.shared.scheduleSave()
-            refreshState()
+            adopted(profile)
         } catch {
             report(error)
         }
+    }
+
+    private func adopted(_ profile: HostsProfile?) {
+        settings.selectedProfileName = profile?.name ?? ""
+        ConfigFile.shared.scheduleSave()
+        refreshState()
     }
 
     /// 直前の内容（バックアップ）から戻す
@@ -230,6 +254,27 @@ struct HostsSettingsView: View {
             }
 
             Section {
+                LabeledContent {
+                    switch module.settings.helperState {
+                    case .active:
+                        Label("入っています", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    case .requiresApproval:
+                        Button("システム設定を開く") { HostsHelper.openLoginItemsSettings() }
+                    case .notInstalled:
+                        Button("ヘルパーを入れる…") { installHelper() }
+                    }
+                } label: {
+                    Text("ヘルパー（パスワード不要で切り替える）")
+                    Text("入れて許可すると、切り替えのたびに管理者のパスワードを聞かれなくなります。")
+                }
+                if module.settings.helperState == .requiresApproval {
+                    Text("システム設定 › 一般 › 「ログイン項目と拡張機能」で MitsuTools をオンにすると効きます。")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
+
+            Section {
                 Toggle("切り替えるときに DNS のキャッシュを消す", isOn: Binding(
                     get: { module.settings.flushDNS },
                     set: { module.settings.flushDNS = $0 }
@@ -300,6 +345,12 @@ struct HostsSettingsView: View {
     private func cancelEditing() {
         if let profile = selectedProfile { entriesText = profile.entries.joined(separator: "\n") }
         isEditing = false
+    }
+
+    private func installHelper() {
+        _ = HostsHelper.install()
+        module.refreshState()
+        note = "ヘルパーを登録しました。システム設定で許可すると、次回からパスワードなしで切り替わります。"
     }
 
     private func addProfile() {

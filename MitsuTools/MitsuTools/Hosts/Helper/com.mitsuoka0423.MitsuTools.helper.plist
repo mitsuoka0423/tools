@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- SMAppService.daemon(plistName:) で登録する LaunchDaemon の定義。
+     ビルドで MitsuTools.app/Contents/Library/LaunchDaemons/ に置かれる。 -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.mitsuoka0423.MitsuTools.helper</string>
+	<key>MachServices</key>
+	<dict>
+		<key>com.mitsuoka0423.MitsuTools.helper</key>
+		<dict/>
+	</dict>
+	<!-- アプリバンドルからの相対パス（アプリを移動しても追従する） -->
+	<key>BundleProgram</key>
+	<string>Contents/Library/LaunchServices/MitsuToolsHelper</string>
+	<!-- 登録できるアプリ（Bundle ID） -->
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>com.mitsuoka0423.MitsuTools</string>
+	</array>
+</dict>
+</plist>
