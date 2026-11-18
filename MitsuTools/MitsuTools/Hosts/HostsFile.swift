@@ -80,39 +80,9 @@ enum HostsFile {
         return state
     }
 
-    // MARK: 読み
-
-    /// 今適用中の行（管理区間の中身）から、指定の行に変えるときの変化。表示専用の差分。
-    struct Change {
-        let added: [String]
-        let removed: [String]
-        let sameCount: Int
-
-        var isEmpty: Bool { added.isEmpty && removed.isEmpty }
-    }
-
-    static func changes(current: [String], target: [String]) -> Change {
-        let curSet = Set(current), tgtSet = Set(target)
-        return Change(added: target.filter { !curSet.contains($0) },
-                      removed: current.filter { !tgtSet.contains($0) },
-                      sameCount: curSet.intersection(tgtSet).count)
-    }
-
-    /// 確認画面に出す「変わる行」の文章
-    static func changesText(_ change: Change, maxShown: Int = 6) -> String {
-        if change.isEmpty { return "変わる行はありません（いま同じ内容が適用されています）。" }
-        var lines: [String] = []
-        for line in change.added.prefix(maxShown) { lines.append("＋ \(line)") }
-        if change.added.count > maxShown { lines.append("＋ ほか \(change.added.count - maxShown) 行") }
-        for line in change.removed.prefix(maxShown) { lines.append("－ \(line)") }
-        if change.removed.count > maxShown { lines.append("－ ほか \(change.removed.count - maxShown) 行") }
-        if change.sameCount > 0 { lines.append("＝ 変りなし \(change.sameCount) 行") }
-        return lines.joined(separator: "\n")
-    }
-
     // MARK: 組み立て
 
-    /// プロファイルを適用した後の内容。管理区間は先頭に置く（同じホスト名なら先に書かれた行が効くため）。
+    /// プロファイルを適用した後の内容。管理区間は先頭に置く（同じホスト名なら先に書かれた ones が効くため）。
     static func content(applying profile: HostsProfile) -> String {
         let block = managedBlock(profile: profile)
         let (current, _) = read()
@@ -123,7 +93,7 @@ enum HostsFile {
     /// 管理区間を取り除いた内容。区間がなければ、元のままを返す。
     static func contentWithoutManagedBlock() -> String {
         let rest = removingManagedBlock(read().content)
-        return rest.isEmpty ? "# ここに MitsuTools の設定はありません（適用をやめています）\n" : rest + "\n"
+        return rest.isEmpty ? "# 这里是空的（MitsuTools 的管理区间已解除）\n" : rest + "\n"
     }
 
     /// 管理区間を取り除いた内容
@@ -144,7 +114,7 @@ enum HostsFile {
 
     static func managedBlock(profile: HostsProfile) -> String {
         var lines = [beginMarker, "# mitsutools profile: \(profile.displayName)"]
-        lines += profile.contentLines
+        lines += profile.entries.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         lines.append(endMarker)
         return lines.joined(separator: "\n")
     }

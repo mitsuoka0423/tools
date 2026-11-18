@@ -8,9 +8,4 @@ struct HostsProfile: Identifiable, Codable, Equatable {
     var entries: [String]
 
     var displayName: String { name.isEmpty ? "無題" : name }
-
-    /// /etc/hosts に書く形に整えた行（空行・コメント行を落とし、余白を詰める）
-    var contentLines: [String] {
-        entries.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty && !$0.hasPrefix("#") }
-    }
 }
