@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosts プロファイル：設定とメニューのデザイン案</title>
+<style>
+:root{
+  --page:#f2f2f7; --window:#ececec; --content:#fff; --group:rgba(0,0,0,.035); --sep:rgba(0,0,0,.09);
+  --label:rgba(0,0,0,.88); --label2:rgba(0,0,0,.52); --label3:rgba(0,0,0,.25);
+  --fill:rgba(0,0,0,.06); --fill2:rgba(0,0,0,.1); --accent:#0088ff; --green:#30b650; --orange:#ff9500; --red:#ff3b30;
+  --diff-add:#e2f5e6; --diff-del:#ffe4e0; --sheet:rgba(246,246,248,.92); --menu:rgba(246,246,248,.72);
+  --shadow:0 18px 44px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.12);
+}
+:root[data-theme="dark"]{
+  --page:#000; --window:#262626; --content:#1c1c1e; --group:rgba(255,255,255,.05); --sep:rgba(255,255,255,.09);
+  --label:rgba(255,255,255,.9); --label2:rgba(255,255,255,.55); --label3:rgba(255,255,255,.28);
+  --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14); --accent:#0a91ff;
+  --diff-add:#1d3a24; --diff-del:#42231d; --sheet:rgba(54,54,58,.94); --menu:rgba(40,40,44,.78);
+  --shadow:0 18px 44px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--label);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+header{max-width:1180px;margin:auto;padding:26px 20px 4px}
+h1{font-size:23px;margin:0 0 6px}
+.lead{color:var(--label2);margin:0;max-width:860px}
+nav{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+nav a{color:var(--label);text-decoration:none;background:var(--fill);padding:4px 12px;border-radius:999px;font-size:13px}
+nav a:hover{background:var(--fill2)}
+.seg{margin-left:auto;display:inline-flex;padding:3px;border-radius:999px;background:var(--fill);gap:2px}
+.seg button{border:0;background:transparent;color:var(--label);font:inherit;font-size:13px;padding:3px 12px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--content);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+main{max-width:1180px;margin:auto;padding:8px 20px 70px}
+section{margin-top:38px}
+h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--sep)}
+h3{font-size:15px;margin:20px 0 6px}
+p{margin:6px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px;align-items:start}
+.card{background:var(--content);border-radius:16px;padding:14px 16px;box-shadow:0 0 0 .5px var(--sep)}
+ul{margin:6px 0;padding-left:20px} li{margin:4px 0}
+.muted{color:var(--label2)} .small{font-size:12px}
+code{font:12px ui-monospace,Menlo,monospace;background:var(--fill);padding:1px 6px;border-radius:5px}
+.tag{display:inline-block;font-size:11px;padding:0 8px;border-radius:999px;background:var(--fill2);color:var(--label2);white-space:nowrap}
+.bad{color:var(--red)} .good{color:var(--green)} .warn{color:var(--orange)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--sep);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--label2);font-weight:600;white-space:nowrap}
+
+/* ---- macOS 設定ウィンドウのモック ---- */
+.win{background:var(--window);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;max-width:560px}
+.win .bar-top{height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--window);border-bottom:1px solid var(--sep)}
+.dot{width:11px;height:11px;border-radius:50%}
+.tabs{display:flex;gap:2px;padding:8px 10px 0;font-size:11px}
+.tabs .tb{flex:1;text-align:center;padding:5px 2px;border-radius:7px;color:var(--label2)}
+.tabs .tb.on{background:var(--fill2);color:var(--label)}
+.pane{padding:14px;background:var(--content)}
+.fgroup{margin:0 0 14px}
+.fgroup>.fh{font-size:13px;font-weight:600;margin:0 0 6px 2px}
+.row{display:flex;align-items:center;gap:8px;background:var(--content);border:0;padding:9px 12px;font:inherit;color:var(--label);width:100%;text-align:left;border-radius:0}
+.fbox{background:var(--content);border-radius:10px;box-shadow:0 0 0 1px var(--sep);overflow:hidden}
+.fbox>.row+.row{box-shadow:inset 0 1px 0 var(--sep)}
+.fbox .row:hover{background:var(--group)}
+.row .grow{flex:1}
+.row .sub{display:block;font-size:11px;color:var(--label2)}
+.status-dot{width:9px;height:9px;border-radius:50%;background:var(--label3);flex:none}
+.status-dot.on{background:var(--green)}
+.btn{border:0;background:var(--content);box-shadow:0 0 0 1px var(--sep),0 1px 2px rgba(0,0,0,.08);border-radius:7px;padding:4px 12px;font:13px inherit;cursor:pointer;color:var(--label);white-space:nowrap}
+.btn.primary{background:var(--accent);color:#fff;box-shadow:none}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--accent)}
+.btnrow{display:flex;gap:8px;padding:8px 12px}
+.hint{font-size:12px;color:var(--label2);padding:2px 12px 10px}
+.sw{width:38px;height:22px;border-radius:999px;background:var(--fill2);position:relative;flex:none;transition:.15s}
+.sw i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.15s}
+.sw.on{background:var(--green)} .sw.on i{left:18px}
+.lines{font:12px/1.9 ui-monospace,Menlo,monospace}
+.lines .ln{display:flex;gap:8px;align-items:center;border-radius:7px;padding:1px 8px}
+.lines .ln:hover{background:var(--group)}
+.lines .ln .ip{color:var(--accent);width:100px;flex:none}
+.lines .ln .x{margin-left:auto;visibility:hidden;color:var(--label2);cursor:pointer}
+.lines .ln:hover .x{visibility:visible}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:2px 10px;border-radius:999px;background:var(--fill);color:var(--label2)}
+.pill.warn{background:rgba(255,149,0,.15);color:var(--orange)}
+.pill.ok{background:rgba(48,182,80,.15);color:var(--green)}
+.check{color:var(--accent);font-weight:700}
+.dirty{font-size:11px;color:var(--orange)}
+
+/* ---- 確認シート（オーバーレイ） ---- */
+.sheetwrap{position:relative}
+.sheet{position:absolute;inset:38px 0 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:52px;background:rgba(0,0,0,.22);border-radius:0 0 12px 12px;opacity:0;pointer-events:none;transition:.18s}
+.sheet.show{opacity:1;pointer-events:auto}
+.sheet .in{width:400px;background:var(--sheet);backdrop-filter:blur(20px);border-radius:14px;box-shadow:var(--shadow);padding:16px;text-align:center}
+.sheet .in h4{margin:0 0 8px;font-size:15px}
+.sheet .in .to{font-size:12px;color:var(--label2);margin:0 0 10px}
+.difftxt{text-align:left;font:12px/1.7 ui-monospace,Menlo,monospace;border-radius:9px;overflow:hidden;background:var(--content);box-shadow:0 0 0 1px var(--sep);margin:0 0 10px}
+.difftxt .a{background:var(--diff-add);padding:0 10px}
+.difftxt .d{background:var(--diff-del);padding:0 10px;text-decoration:none}
+.difftxt .s{padding:2px 10px;color:var(--label2);font-family:-apple-system,"Hiragino Sans",sans-serif}
+.sheet .btns{display:flex;gap:8px;justify-content:center}
+.locknote{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--label2);margin:0 0 10px}
+
+/* ---- メニューのモック ---- */
+.menuctl{position:relative;width:236px;background:var(--menu);backdrop-filter:blur(28px);border-radius:8px;box-shadow:var(--shadow),0 0 0 .5px rgba(0,0,0,.25);padding:5px;font-size:13px}
+.mi{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;white-space:nowrap}
+.mi .mk{width:14px;flex:none;text-align:center;color:var(--accent);font-weight:700}
+.mi.hot{background:var(--accent);color:#fff} .mi.hot .mk{color:#fff}
+.msep{height:1px;background:var(--sep);margin:5px 10px 5px 6px}
+.mi .cnt{margin-left:auto;color:var(--label2);font-size:11px}
+
+/* 注釈 */
+.callouts{position:relative}
+.note{position:absolute;font-size:11px;line-height:1.4;background:#ffe9a8;color:#5c4a00;padding:5px 9px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.18);max-width:230px}
+:root[data-theme="dark"] .note{background:#6b5616;color:#ffe9a8}
+.note b{display:block}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:6px;margin-right:6px}
+.badge.a{background:var(--green);color:#fff} .badge.b{background:var(--orange);color:#fff}
+footer{max-width:1180px;margin:auto;padding:0 20px 50px;color:var(--label2);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Hosts プロファイル：設定画面とメニューのデザイン案</h1>
+  <p class="lead">機能仕様（プロファイル＝行の集合／/etc/hosts は管理区間だけ入替／適用のたび管理者パスワード／hosts.json・config.toml・バックアップ）は変えないまま、「どれが効いているか」「押すと何が起きるか」「いま編集して安全か」が一目でわかる形に組み替えます。</p>
+  <nav>
+    <a href="#now">現状の問題</a><a href="#principles">設計方針</a><a href="#planA">案A（推奨）</a><a href="#menu">メニュー</a><a href="#planB">案B</a><a href="#compare">比較</a><a href="#words">言い換え表</a>
+    <span class="seg"><button id="tLight" class="on">ライト</button><button id="tDark">ダーク</button></span>
+  </nav>
+</header>
+<main>
+
+<!-- ================= 現状の問題 ================= -->
+<section id="now">
+  <h2>いまの画面の問題</h2>
+  <div class="grid2">
+    <div class="callouts">
+      <div class="win">
+        <div class="bar-top"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span style="font-size:12px;color:var(--label2);margin-left:6px">Hosts（現状）</span></div>
+        <div class="tabs"><span class="tb">一般</span><span class="tb">クリップボード</span><span class="tb">自動コピー</span><span class="tb on">Hosts</span></div>
+        <div class="pane">
+          <div class="fgroup"><div class="fh">プロファイル</div>
+            <div class="fbox">
+              <div class="row"><span class="sw"></span><span>開発 <span class="sub">3 行</span></span><span class="grow"></span><span class="tag">名前変更</span><span class="tag">消す</span></div>
+              <div class="row"><span class="sw"></span><span>仕入先 <span class="sub">1 行</span></span><span class="grow"></span><span class="tag">名前変更</span><span class="tag">消す</span></div>
+            </div>
+            <div class="btnrow"><button class="btn">追加…</button></div>
+          </div>
+          <div class="fgroup"><div class="fh">中身</div>
+            <div class="fbox"><div class="row lines" style="display:block;padding:10px 12px"><div>127.0.0.1 dev.local</div><div>0.0.0.0 ads.example.com</div><div>10.2.0.31 db.internal</div></div>
+            <div class="btnrow"><button class="btn">編集</button></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="top:64px;right:-14px"><b>① スイッチ＝即パスワード</b>触った途端に管理者ダイアログ。見たかっただけで怖い</div>
+      <div class="note" style="top:218px;left:-10px"><b>② 1行に意味が2つ</b>名前=プレビュー、スイッチ=適用。初見では分からない</div>
+      <div class="note" style="bottom:96px;right:-6px"><b>③ 編集の恐怖</b>「編集→完了」の前に、直しても /etc/hosts に影響がないと見えない</div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">困っていること（レビュー由来）</h3>
+      <ul>
+        <li><b class="bad">手が当たって誤変更</b>：編集欄が常にむき出し（→既定読み取り専用に改善済みだが、編集自体が「書き換え＝危険」という印象）</li>
+        <li><b class="bad">適用の UI が使いにくい</b>：スイッチの意味が分かりにくい／押下前にパスワードを聞かれる</li>
+        <li>「管理区間を解除」「直前に戻す」が内部語で、何が戻るのか不明</li>
+        <li><b>今どこが効いているか</b>が、そのプロファイルを開かないと確認できない</li>
+        <li>エラー（パスワード取消など）に警告ダイアログで怒られる</li>
+      </ul>
+      <p class="small muted">※hosts.json（プロファイル）と /etc/hosts（適用状態）は別物。ここを画面言語として分離できていないのが根本の原因。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 設計方針 ================= -->
+<section id="principles">
+  <h2>設計方針（5つ）</h2>
+  <div class="card">
+    <ol>
+      <li><b>状態を先頭にする</b> — 「今適用されているもの」を画面の一番上に大きく出す。真実は /etc/hosts にある。</li>
+      <li><b>副作用は必ずプレビュー after</b> — /etc/hosts を書き換える操作（適用・解除・戻す）は、必ず「変わる行」を見せてから確認し、その後にパスワードを聞く。</li>
+      <li><b>編集と適用を分ける</b> — プロファイルの編集は hosts.json へ自動保存されるだけで、/etc/hosts には何もしない。安心して触れる。<b>効いているものと違う箇所を直したら「反映されていません」のしるし</b>を出す。</li>
+      <li><b>1行1動作</b> — 行タップ＝選んでプレビュー、適用は専用ボタン。スイッチのように「状態に見えて実は命令」という形は作らない。</li>
+      <li><b>人間の言葉</b> — 「適用中」「使うやめる」「いまの内容に戻す」。管理区間・バックアップは注記に逃がす。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 案A ================= -->
+<section id="planA">
+  <h2><span class="badge a">案A</span>状態カード＋プレビュー適用（推奨）</h2>
+  <p class="muted">「適用」ボタンを押すと、下のシート（モック内で実際に動きます）で変わる行を確認してからパスワードに進みます。</p>
+  <div class="sheetwrap" id="sheetwrap">
+  <div class="win">
+    <div class="bar-top"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span style="font-size:12px;color:var(--label2);margin-left:6px">Hosts</span></div>
+    <div class="tabs"><span class="tb">一般</span><span class="tb">クリップボード</span><span class="tb">自動コピー</span><span class="tb">通知</span><span class="tb on">Hosts</span></div>
+    <div class="pane">
+
+      <div class="fbox" style="margin-bottom:16px;background:var(--group)">
+        <div class="row">
+          <span class="status-dot on"></span>
+          <span><b>適用中：「開発」</b><span class="sub">/etc/hosts に行が 3 行入っています</span></span>
+          <span class="grow"></span>
+          <button class="btn" onclick="openSheet('off')">適用をやめる</button>
+        </div>
+      </div>
+
+      <div class="fgroup"><div class="fh">プロファイル</div>
+        <div class="fbox" id="plist">
+          <button class="row" onclick="pick(this,true)"><span class="check">✓</span><span>開発<span class="sub">3 行 ・ 編集しました（未反映）</span></span><span class="grow"></span><span class="dirty">●未反映</span></button>
+          <button class="row" onclick="pick(this,false)"><span class="mk" style="width:14px"></span><span>仕入先<span class="sub">1 行</span></span></button>
+          <button class="row" onclick="pick(this,false)"><span class="mk" style="width:14px"></span><span>本社バックアップ<span class="sub">2 行 ・ 適用中の内容と一致</span></span><span class="grow"></span><span class="pill ok small">一致</span></button>
+        </div>
+        <div class="btnrow"><button class="btn">＋ プロファイルを追加…</button><span class="grow"></span><span class="tag">行の数は /etc/hosts に影響しません</span></div>
+      </div>
+
+      <div class="fgroup"><div class="fh">選んだプロファイル：開発</div>
+        <div class="fbox">
+          <div class="lines" style="padding:8px 6px">
+            <div class="ln"><span class="ip">127.0.0.1</span><span>dev.local</span><span class="x">×削除</span></div>
+            <div class="ln"><span class="ip">0.0.0.0</span><span>ads.example.com</span><span class="x">×削除</span></div>
+            <div class="ln"><span class="ip">10.2.0.31</span><span>db.internal <span class="tag">今の hosts と同じ</span></span><span class="x">×削除</span></div>
+          </div>
+          <div class="btnrow" style="border-top:1px solid var(--sep)">
+            <button class="btn ghost">＋ 行を追加</button>
+            <span class="grow"></span>
+            <button class="btn primary" onclick="openSheet('on')">この中身を適用</button>
+          </div>
+          <p class="hint">編集は hosts.json に自動保存されるだけで、<b>/etc/hosts には効きません</b>。「この中身を適用」を押すまで待ちます。IP と名前はそのまま直せます（仮実装ではテキスト欄でも可）。</p>
+        </div>
+      </div>
+
+      <div class="fgroup"><div class="fh">オプション</div>
+        <div class="fbox">
+          <div class="row"><span class="sw on"><i></i></span><span>切り替えるときに DNS のキャッシュを消す<span class="sub">効きが遅いとき、これがあると即座に反映されます</span></span></div>
+          <div class="row"><span style="width:38px"></span><span>/etc/hosts のバックアップ<span class="sub">適用する直前の内容は /etc/hosts.mitsutools.bak に残っています</span></span><span class="grow"></span><button class="btn" onclick="openSheet('bak')">直前の内容に戻す…</button></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 確認シート -->
+    <div class="sheet" id="sheet">
+      <div class="in">
+        <h4 id="shTitle">「開発」を /etc/hosts に適用しますか？</h4>
+        <p class="to" id="shSub">今の hosts には「開発」が適用されています。変わる行だけを入れます。</p>
+        <div class="difftxt" id="shDiff">
+          <div class="a">＋ 127.0.0.1 dev.local</div>
+          <div class="a">＋ 0.0.0.0 ads.example.com</div>
+          <div class="s">＝ 10.2.0.31 db.internal（変りなし）</div>
+        </div>
+        <div class="locknote">🔒 このあと macOS に管理者パスワードを聞かれます <span class="muted">（ヘルパー方式ではないため毎回必要）</span></div>
+        <div class="btns">
+          <button class="btn" onclick="closeSheet()">取り消し</button>
+          <button class="btn primary" onclick="confirmSheet()">適用する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <p class="small muted" id="sheetlog">（上の「この中身を適用」を押すと確認シートが出ます。これはモックです。/etc/hosts は変わりません）</p>
+</section>
+
+<!-- ================= メニュー ================= -->
+<section id="menu">
+  <h2>メニューバーのメニュー</h2>
+  <div class="grid2">
+    <div>
+      <h3>Hosts モジュールのメニュー（案A準拠）</h3>
+      <div class="menuctl" id="menuMock">
+        <div class="mi"><span class="mk">✓</span><b>開発</b><span class="cnt">3 行</span></div>
+        <div class="mi"><span class="mk"></span>仕入先<span class="cnt">1 行</span></div>
+        <div class="mi"><span class="mk"></span>本社バックアップ<span class="cnt">2 行</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span class="mk"></span>適用をやめる<span class="cnt">hosts から外す</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span class="mk"></span>Hosts の設定…</div>
+      </div>
+      <ul class="small muted">
+        <li>✓ が「今 hosts に入っているもの」。無いものは効いていない</li>
+        <li>クリックすると<u>同じ確認シート</u>（変わる行＋パスワード予告）が出てから適用。メニューからでも暴発しない</li>
+        <li>「適用をやめる」は効いていないときグレーアウト</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">メニュー表示のルール</h3>
+      <table>
+        <tr><th>状態</th><th>メニューの見える</th></tr>
+        <tr><td>「開発」適用中</td><td><code>✓ 開発</code>＋他のプロファイル＋<code>適用をやめる</code></td></tr>
+        <tr><td>未適用</td><td>全プロファイル（✓なし）＋<code>適用をやめる</code>はグレー</td></tr>
+        <tr><td> /etc/hosts に手で他の行を足している</td><td>プロファイル名の横に <span class="warn">「/etc/hosts を手で変更」</span>の一行表示（検出時だけ）</td></tr>
+        <tr><td>プロファイル0件</td><td><code>プロファイルがありません</code>＋<code>Hosts の設定…</code></td></tr>
+      </table>
+      <p class="small muted">「hosts を手で変更」検出：管理区間外の行が変わっていたら出すだけで、直せとは急かさない。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 案B ================= -->
+<section id="planB">
+  <h2><span class="badge b">案B</span>スイッチは残すが、押したら必ず確認</h2>
+  <div class="grid2">
+    <div class="win" style="max-width:480px">
+      <div class="bar-top"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span style="font-size:12px;color:var(--label2);margin-left:6px">Hosts（案B）</span></div>
+      <div class="pane">
+        <div class="fbox" style="margin-bottom:14px;background:var(--group)"><div class="row"><span class="status-dot on"></span><span><b>適用中：開発</b></span><span class="grow"></span><span class="tag">3 行</span></div></div>
+        <div class="fbox">
+          <div class="row"><span class="sw on"><i></i></span><span>開発 <span class="sub">3 行</span></span></div>
+          <div class="row"><span class="sw"><i></i></span><span>仕入先 <span class="sub">1 行</span></span></div>
+        </div>
+        <p class="hint">スイッチは radio のように「これにする」だけ。押した瞬間は hosts.json 上の選択が動き、<b>確認シートで承認するまで hosts は変わらない</b>（シートで取り消せばスイッチも戻る）。</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">案A との違い</h3>
+      <ul>
+        <li>操作数が少ない（慣れるとスイッチ一発＋確認1回）</li>
+        <li>ただし「スイッチ＝命令」の形は残るので、誤タップ→確認画面という安心設計が前提</li>
+        <li>編集領域は案Aと同じ（未反映バッジ＋自動保存）</li>
+      </ul>
+      <p class="small muted">「radio にしたスイッチ」は見た目で状態が伝わりにくい（両方オンに見える可能性）ため、案A の方が安全側と判断。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 比較 ================= -->
+<section id="compare">
+  <h2>比較と推奨</h2>
+  <table>
+    <tr><th></th><th>案A（状態カード＋適用ボタン）</th><th>案B（スイッチ＋確認）</th><th>現状</th></tr>
+    <tr><td>暴発（意図しない hosts 変更）</td><td class="good">無（適用ボタン経由のみ）</td><td class="warn">低（確認で受け止める）</td><td class="bad">高（押して即パスワード）</td></tr>
+    <tr><td>今の適用状態の可読性</td><td class="good">最上部＋行に✓/一致</td><td class="warn">状態バー＋スイッチ位置</td><td class="bad">行を開くまで不明</td></tr>
+    <tr><td>編集の安心</td><td class="good">自動保存＝JSONのみ、未反映バッジ</td><td class="good">同左</td><td class="warn">読み取り専用＋編集ボタン</td></tr>
+    <tr><td>操作数（切替）</td><td>3（選択→適用→承認）</td><td>2（スイッチ→承認）</td><td>2（スイッチ→パスワード）</td></tr>
+    <tr><td>パスワードの予告</td><td class="good">確認シートに表示</td><td class="good">確認シートに表示</td><td class="bad">予告なし</td></tr>
+  </table>
+  <p><b>推奨：案A。</b>「見たい／選びたい」と「/etc/hosts を変えたい」の意図がはっきり違い、誤操作が起きない設計です。操作数が1増える分は、常用者はメニューバーの「適用」＋確認（Enter）で速くできます。</p>
+</section>
+
+<!-- ================= 言い換え表 ================= -->
+<section id="words">
+  <h2>言い換え・仕様整理（画面語彙）</h2>
+  <table>
+    <tr><th>今の語</th><th>新しい語</th><th>画面での位置</th></tr>
+    <tr><td>管理区間を解除</td><td><b>適用をやめる</b>（hosts から外す）</td><td>状態カード・メニュー</td></tr>
+    <tr><td>（状態の語）なし</td><td><b>適用中：「開発」</b>／<b>未適用</b></td><td>常時・最上部</td></tr>
+    <tr><td>この中身を適用（新設）</td><td>「適用」の確認シートへ</td><td>プレビュー下部</td></tr>
+    <tr><td>直前に戻す</td><td>「直前の内容に戻す…」（確認シート＋ bak ファイルを明記）</td><td>オプション</td></tr>
+    <tr><td>内容</td><td>「選んだプロファイル：<b>開発</b>」</td><td>編集領域のヘッダ</td></tr>
+    <tr><td>（編集の自動保存）</td><td>「/etc/hosts には効いていません」＝<span class="dirty">●未反映</span>バッジで表す</td><td>行の右端</td></tr>
+  </table>
+  <h3>状態の取り決め（実装仕様メモ）</h3>
+  <ul>
+    <li><b>未反映</b>：選んだプロファイルの行と、 hosts 中の管理区間の中身が違う（一致判定は行集合で比較）</li>
+    <li><b>一致</b>：hosts に適用中と同一の行（プロファイル自体は hosts.json にのみ存在）</li>
+    <li><b> /etc/hosts 手変更検出</b>：前回読んだ hosts のうち「管理区間以外」が変わっていたら、注意一行（直す誘導はしない）</li>
+    <li>パスワード取消はエラー扱いしない（シートを閉じただけ＝無かったことにする）</li>
+    <li>書き込み失敗（権限・読み取り専用）だけ赤い警告。</li>
+  </ul>
+</section>
+
+<footer>実装済みの機能（hosts.json・config.toml の active・バックアップ・DNS flush・osascript 方式）はそのまま、画面の組み替えだけで到達できる案です。実装するなら案A：状態カード＋「この中身を適用」＋確認シート（変わる行＋パスワード予告）＋行単位のプレビュー。</footer>
+
+<script>
+const root=document.documentElement;
+tLight.onclick=()=>{root.removeAttribute('data-theme');tLight.classList.add('on');tDark.classList.remove('on')};
+tDark.onclick=()=>{root.setAttribute('data-theme','dark');tDark.classList.add('on');tLight.classList.remove('on')};
+
+function pick(el,on){
+  document.querySelectorAll('#plist .row').forEach(r=>{r.querySelector('.check')?.remove();});
+  const c=document.createElement('span');c.className='check';c.textContent='✓';el.prepend(c);
+}
+const sheet=document.getElementById('sheet');
+let mode='on';
+function openSheet(m){
+  mode=m;
+  const t=document.getElementById('shTitle'),d=document.getElementById('shDiff'),s=document.getElementById('shSub'),ok=document.querySelector('.btns .primary');
+  if(m==='on'){t.textContent='「開発」を /etc/hosts に適用しますか？';s.textContent='今の hosts には「開発」が適用されています。変わる行だけを入れます。';d.innerHTML='<div class="a">＋ 127.0.0.1 dev.local</div><div class="a">＋ 0.0.0.0 ads.example.com</div><div class="s">＝ 10.2.0.31 db.internal（変りなし）</div>';ok.textContent='適用する';}
+  if(m==='off'){t.textContent='適用をやめますか？';s.textContent=' /etc/hosts から「開発」の行だけを外します。他の行（localhost など）はそのままです。';d.innerHTML='<div class="d">－ 127.0.0.1 dev.local</div><div class="d">－ 0.0.0.0 ads.example.com</div><div class="d">－ 10.2.0.31 db.internal</div>';ok.textContent='外す';}
+  if(m==='bak'){t.textContent='直前の内容に戻しますか？';s.textContent='/etc/hosts.mitsutools.bak に残っている内容（最後に適用する直前）に戻します。';d.innerHTML='<div class="a">＋ 10.0.0.5 old.local</div><div class="s">（現在の hosts に対して +1 −3 の行数変化）</div>';ok.textContent='戻す';}
+  sheet.classList.add('show');
+}
+function closeSheet(){sheet.classList.remove('show')}
+function confirmSheet(){closeSheet();document.getElementById('sheetlog').textContent='（モック：ここでは実際の書き込みとパスワードは起きません。実装ではこの後に macOS のパスワード確認が出ます）';}
+</script>
+</body>
+</html>
