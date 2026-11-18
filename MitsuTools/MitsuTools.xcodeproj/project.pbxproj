@@ -19,23 +19,10 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A10000000000000000000110 /* MitsuTools */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				A10000000000000000000111 /* Exceptions for "MitsuTools" folder in "MitsuTools" target */,
-			);
 			path = MitsuTools;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A10000000000000000000111 /* Exceptions for "MitsuTools" folder in "MitsuTools" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Hosts/Helper/main.swift",
-				"Hosts/Helper/com.mitsuoka0423.MitsuTools.helper.plist",
-			);
-			target = A10000000000000000000500 /* MitsuTools */;
-		};
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10000000000000000000210 /* Frameworks */ = {
@@ -77,7 +64,6 @@
 				A10000000000000000000200 /* Sources */,
 				A10000000000000000000210 /* Frameworks */,
 				A10000000000000000000220 /* Resources */,
-				A10000000000000000000230 /* Build Hosts Helper */,
 			);
 			buildRules = (
 			);
@@ -141,33 +127,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A10000000000000000000230 /* Build Hosts Helper */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$SRCROOT/MitsuTools/Hosts/Helper/main.swift",
-				"$SRCROOT/MitsuTools/Hosts/HostsXPC.swift",
-				"$SRCROOT/MitsuTools/Hosts/Helper/com.mitsuoka0423.MitsuTools.helper.plist",
-			);
-			name = "Build Hosts Helper";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchServices/MitsuToolsHelper",
-				"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchDaemons/com.mitsuoka0423.MitsuTools.helper.plist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nLS=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchServices\"\nLD=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchDaemons\"\nWORK=\"$TMPDIR/mitsutools-helper\"\nmkdir -p \"$LS\" \"$LD\" \"$WORK\"\n# ユーザースクリプトのサンドボックスに配慮し、作業は一時領域でやってから配置する\nxcrun swiftc -O -o \"$WORK/MitsuToolsHelper\" \\\n  \"$SRCROOT/MitsuTools/Hosts/Helper/main.swift\" \\\n  \"$SRCROOT/MitsuTools/Hosts/HostsXPC.swift\"\n# ヘルパーはアプリと同じチームの署名でないと LaunchDaemon として登録できない\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then\n  /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp=none \"$WORK/MitsuToolsHelper\"\nfi\ncp \"$WORK/MitsuToolsHelper\" \"$LS/MitsuToolsHelper\"\ncp \"$SRCROOT/MitsuTools/Hosts/Helper/com.mitsuoka0423.MitsuTools.helper.plist\" \"$LD/\"";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000200 /* Sources */ = {
