@@ -185,7 +185,7 @@ final class HostsModule: ToolModule {
     }
 }
 
-// MARK: メニュー（選ばれているものの表示だけ。操作は設定画面で行う）
+// MARK: メニュー（選ばれているものの表示だけ。操作も設定への導線も出さない）
 
 private struct HostsMenuItems: View {
     let module: HostsModule
@@ -196,8 +196,6 @@ private struct HostsMenuItems: View {
         } else {
             Text("Hosts：未適用")
         }
-        Divider()
-        Button("Hosts の設定…") { SettingsWindowController.shared.show(pane: "hosts") }
     }
 }
 

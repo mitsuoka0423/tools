@@ -197,19 +197,15 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
     <div>
       <div class="menu">
         <div class="mi dis"><span>Hosts：適用中「開発」</span></div>
-        <div class="msep"></div>
-        <div class="mi"><span>Hosts の設定…</span></div>
       </div>
       <div class="menu" style="margin-top:12px">
         <div class="mi dis"><span>Hosts：未適用</span></div>
-        <div class="msep"></div>
-        <div class="mi"><span>Hosts の設定…</span></div>
       </div>
     </div>
     <ul>
       <li>プロファイルの並ぶクリック可能な一覧は<b>廃止</b>（ご方針「選択は設定画面で行う」）</li>
       <li>状態は1行のテキスト表示のみ（グレーの無効項目）。クリックも権限ダイアログも起きない</li>
-      <li>入口として「Hosts の設定…」だけ（タブを開く。設定画面へ飛ぶ導線は EditContext の案内と同じ流儀）</li>
+      <li>設定画面への入口も置かない（タブで開く運用。ご方針「メニューに「Hosts の設定」は不要」）</li>
     </ul>
   </div>
 </section>
@@ -221,7 +217,7 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
     <tr><td>行末 <code>Toggle</code>（appliedSwitch）＋右に「適用中」文字＋「追加…」</td><td>行頭ラジオアイコン＋「なし」行。<code>Toggle</code> は DNS オプション以外から消える</td></tr>
     <tr><td>スイッチ ON→即 <code>apply</code>（パスワード直行）</td><td>行タップ→NSAlert 確認→承認後 <code>apply</code>（confirmAndApply に一本化）</td></tr>
     <tr><td>「適用をやめる」はスイッチの OFF</td><td>「なし」ラジオへ切り替え＝同じ確認経由。専用のボタンを作らない</td></tr>
-    <tr><td>メニュー：全プロファイルクリック→即適用＋「管理区間を解除」</td><td>メニュー：状態1行（無効項目）＋「Hosts の設定…」のみ</td></tr>
+    <tr><td>メニュー：全プロファイルクリック→即適用＋「管理区間を解除」</td><td>メニュー：状態1行（無効項目）のみ</td></tr>
     <tr><td>中身セクション（読み取り＋編集ボタン）</td><td>廃止。行の目アイコンで他アプリに委譲、「ファイルを編集…」で hosts.json を開く</td></tr>
     <tr><td>フッターの「管理区間」語</td><td>「MitsuTools の行」に統一</td></tr>
   </table>
@@ -233,7 +229,7 @@ th{color:var(--label2);font-weight:600;white-space:nowrap}
   <ol>
     <li>ラジオ＝ hosts の真実（仮選び状態なし）。編集後の未反映は sub の「適用中（編集した内容の適用待ち）」で表す</li>
     <li>「なし」行：なし（hosts に MitsuTools の行を入れない）</li>
-    <li>メニュー：<code>Hosts：適用中「開発」</code>／<code>Hosts：未適用</code> ＋ <code>Hosts の設定…</code> のみ。<b>行数も中身も出さない</b></li>
+    <li>メニュー：<code>Hosts：適用中「開発」</code>／<code>Hosts：未適用</code> の1行のみ。<b>行数も中身も設定への入口も出さない</b></li>
     <li>プロファイル行の説明に<b>行数は出さない</b>。中身セクションは廃止し、行の目アイコンで他アプリに委譲／「ファイルを編集…」で hosts.json を直接編集</li>
     <li>差分ゼロの再適用はパスワードを聞かない</li>
   </ol>
