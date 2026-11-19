@@ -81,7 +81,7 @@ enum SelectionReader {
 
         // 1. ふつうの文字の欄（テキストエディット、メモ、多くの入力欄）
         if let text = string(focused, kAXSelectedTextAttribute), !text.isEmpty {
-            return .selection(Selection(text: text, rect: boundsOfSelectedRange(focused), isSecure: false))
+            return .selection(Selection(text: repairWebArea(focused, text), rect: boundsOfSelectedRange(focused), isSecure: false))
         }
         // 2. Web の文章（Safari・Chrome など）：選択は「テキストマーカー」で表されている。親をたどって探す
         var current: AXUIElement? = focused
@@ -89,12 +89,13 @@ enum SelectionReader {
             guard let el = current else { break }
             if let marker = value(el, "AXSelectedTextMarkerRange"),
                let text = parameterized(el, "AXStringForTextMarkerRange", marker) as? String, !text.isEmpty {
+                let shown = repairWebArea(el, text)
                 var rect: CGRect?
                 if let v = parameterized(el, "AXBoundsForTextMarkerRange", marker), CFGetTypeID(v) == AXValueGetTypeID() {
                     var r = CGRect.zero
                     if AXValueGetValue(v as! AXValue, .cgRect, &r) { rect = r }
                 }
-                return .selection(Selection(text: text, rect: rect, isSecure: false))
+                return .selection(Selection(text: shown, rect: rect, isSecure: false))
             }
             current = element(el, kAXParentAttribute)
         }
@@ -112,6 +113,67 @@ enum SelectionReader {
     }
 
     // MARK: 内部
+
+    /// Chromium の WebArea は段落またぎの選択文字列から区切りを落とす（2026-11 実測:
+    /// Chrome 157・Slack）。改行のない文字列が、ツリーの中のブロック文字列の続きとして
+    /// 組み立てられるときだけ、改行でつなぎ直す。合わなければそのまま返す
+    private static func repairWebArea(_ el: AXUIElement, _ text: String) -> String {
+        guard !text.contains("\n"), string(el, kAXRoleAttribute) == "AXWebArea",
+              let joined = Self.rejoin(selection: text, blocks: Self.blockTexts(of: el)) else { return text }
+        return joined
+    }
+
+    /// WebArea の中からブロック（段落相当）の文字列を順に集める。
+    /// 同じ親の下に並び合う StaticText（文中の強調など）は 1 ブロックにまとめ、
+    /// 段落またぎだけがブロックの区切りになるようにする
+    private static func blockTexts(of el: AXUIElement) -> [String] {
+        var leaves: [(parent: AXUIElement, text: String)] = []
+        collectLeaves(el, depth: 0, into: &leaves)
+        var blocks: [(parent: AXUIElement, text: String)] = []
+        for leaf in leaves {
+            if let last = blocks.indices.last, CFEqual(leaf.parent as CFTypeRef, blocks[last].parent as CFTypeRef) {
+                blocks[last].text += leaf.text
+            } else {
+                blocks.append(leaf)
+            }
+        }
+        return blocks.map(\.text)
+    }
+
+    private static func collectLeaves(_ el: AXUIElement, depth: Int, into out: inout [(parent: AXUIElement, text: String)]) {
+        if depth > 10 || out.count >= 600 { return }
+        if string(el, kAXRoleAttribute) == "AXStaticText", let v = string(el, kAXValueAttribute), !v.isEmpty {
+            let parent = element(el, kAXParentAttribute) ?? el
+            out.append((parent, v))
+            return
+        }
+        if let kids = value(el, kAXChildrenAttribute) as? [AXUIElement] {
+            for kid in kids { collectLeaves(kid, depth: depth + 1, into: &out) }
+        }
+    }
+
+    /// つなぎ直せたときだけ、ブロック間に改行を入れた文字列を返す（テストしやすい純関数）
+    static func rejoin(selection: String, blocks: [String]) -> String? {
+        guard blocks.count > 1 else { return nil }
+        var rest = selection, out: [String] = []
+        for block in blocks {
+            if rest.isEmpty { break }
+            if block.hasPrefix(rest) { out.append(rest); rest = ""; break }          // 選択末尾がこのブロックの中
+            if rest.hasPrefix(block) { out.append(block); rest = String(rest.dropFirst(block.count)); continue }
+            // 選択がブロックの途中から始まっている：ブロックの末尾が rest の先頭に重なるか
+            let maxOver = Swift.min(block.count, rest.count)
+            var k = maxOver, advanced = false
+            while k > 0 {
+                if block.suffix(k) == rest.prefix(k) {
+                    out.append(String(rest.prefix(k))); rest = String(rest.dropFirst(k)); advanced = true; break
+                }
+                k -= 1
+            }
+            if !advanced && !out.isEmpty { return nil } // 選び始めたあとのブロックが合わないなら復元あきらめ
+        }
+        guard rest.isEmpty, out.count > 1 else { return nil }
+        return out.joined(separator: "\n")
+    }
 
     private static func boundsOfSelectedRange(_ el: AXUIElement) -> CGRect? {
         guard let range = value(el, kAXSelectedTextRangeAttribute),
