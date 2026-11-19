@@ -7,8 +7,9 @@ final class CopiedPopup {
     private var panel: FloatingPanel?
     private var hideWork: DispatchWorkItem?
 
-    /// rect は Accessibility の座標（左上原点）。nil ならマウスの位置の上に出す。
-    func show(at rect: CGRect?, duration: Double) {
+    /// rect は Accessibility の座標（左上原点）。aboveCursor が true なら、選択位置ではなく
+    /// 現在のカーソルの少し上に出す（マウスで選んだときは見ている場所に近いほうが早いため）。
+    func show(at rect: CGRect?, aboveCursor: Bool, duration: Double) {
         let panel = self.panel ?? {
             let p = FloatingPanel(contentRect: .zero, acceptsKey: false)
             p.ignoresMouseEvents = true
@@ -20,7 +21,12 @@ final class CopiedPopup {
         let size = panel.contentView?.fittingSize ?? CGSize(width: 160, height: 56)
         let mouse = NSEvent.mouseLocation
         // 位置の基準（AppKit の座標＝左下原点）
-        let anchor = rect.map { NSScreen.fromAX($0) } ?? CGRect(x: mouse.x, y: mouse.y + 14, width: 0, height: 0)
+        let anchor: CGRect
+        if aboveCursor || rect == nil {
+            anchor = CGRect(x: mouse.x, y: mouse.y + 14, width: 0, height: 0) // カーソルの少し上
+        } else {
+            anchor = NSScreen.fromAX(rect!)
+        }
         let screen = NSScreen.screens.first { $0.frame.contains(CGPoint(x: anchor.midX, y: anchor.midY)) } ?? NSScreen.withMouse
         let area = screen?.visibleFrame ?? anchor.insetBy(dx: -400, dy: -400)
         // 影のための余白（上下左右 12pt）があるので、少しだけ重ねる

@@ -249,7 +249,7 @@ final class AutoCopyEngine {
         lastCopy = LastCopy(text: text, pid: app.processIdentifier, changeCount: pasteboard.changeCount, previous: previous)
         touchedSinceCopy = false
         phase = .copied
-        if settings.showPopup { popup.show(at: selection.rect, duration: settings.popupSeconds) }
+        if settings.showPopup { popup.show(at: selection.rect, aboveCursor: g.kind == .mouse, duration: settings.popupSeconds) }
         DispatchQueue.main.asyncAfter(deadline: .now() + settings.popupSeconds) { [weak self] in
             MainActor.assumeIsolated { if self?.phase == .copied { self?.phase = .idle } }
         }
