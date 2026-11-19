@@ -24,7 +24,7 @@ final class HostsSettings {
 ///   （「なし」も1つの選択肢として並べ、実態の n+1 状態をそのまま見せる）
 /// - 行をタップすると「変わる行」の確認画面が出る。承認して初めて管理者パスワード→hosts 書き込み。
 ///   取り消しなら radio も hosts も動くだけは何も起きない
-/// - プロファイルの行数も中身も設定画面には出さない。中身は行の「見る」ボタンで
+/// - プロファイルの行数も中身も設定画面には出さない。中身は行の目アイコンで
 ///   ほかのアプリに開く（編集も hosts.json を直接開いてもらう）
 /// - メニューバーは選ばれているものの表示だけ（操作は設定画面で行う）
 @MainActor
@@ -226,8 +226,13 @@ struct HostsSettingsView: View {
                         }
                         .buttonStyle(.plain)
                         Spacer()
-                        Button("見る") { module.openContents(profile) }
-                            .help("このプロファイルの中身を、ほかのアプリで開きます")
+                        Button {
+                            module.openContents(profile)
+                        } label: {
+                            Image(systemName: "eye").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("中身を見る（ほかのアプリで開きます）")
                         Button {
                             rename(profile)
                         } label: {
