@@ -34,7 +34,6 @@ final class CopiedPopup {
         if y + size.height > area.maxY { y = anchor.minY - size.height + 8 } // 上に余白がなければ下に出す
         let x = min(max(anchor.midX - size.width / 2, area.minX), area.maxX - size.width)
         panel.setFrame(CGRect(x: x, y: y, width: size.width, height: size.height), display: true)
-        NSLog("MitsuTools-DBG popup: mouse=\(mouse) aboveCursor=\(aboveCursor) rect=\(String(describing: rect)) anchor=\(anchor) size=\(size) frame=\(panel.frame) screens=\(NSScreen.screens.map { $0.frame })")
         panel.alphaValue = 1
         panel.orderFrontRegardless()
 
