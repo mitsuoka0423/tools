@@ -18,7 +18,10 @@ final class CopiedPopup {
             self.panel = p
             return p
         }()
-        let size = panel.contentView?.fittingSize ?? CGSize(width: 160, height: 56)
+        panel.contentView?.layoutSubtreeIfNeeded()
+        let fitting = panel.contentView?.fittingSize ?? .zero
+        // glassEffect 入りだと fittingSize がまだ 0 になることがある。そのときは標準サイズで置く
+        let size = (fitting.width > 40 && fitting.height > 10) ? fitting : CGSize(width: 170, height: 56)
         let mouse = NSEvent.mouseLocation
         // 位置の基準（AppKit の座標＝左下原点）
         let anchor: CGRect

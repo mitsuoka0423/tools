@@ -141,7 +141,7 @@ enum SelectionReader {
     }
 
     private static func collectLeaves(_ el: AXUIElement, depth: Int, into out: inout [(parent: AXUIElement, text: String)]) {
-        if depth > 10 || out.count >= 600 { return }
+        if depth > 14 || out.count >= 2_500 { return }
         if string(el, kAXRoleAttribute) == "AXStaticText", let v = string(el, kAXValueAttribute), !v.isEmpty {
             let parent = element(el, kAXParentAttribute) ?? el
             out.append((parent, v))
@@ -152,27 +152,85 @@ enum SelectionReader {
         }
     }
 
-    /// つなぎ直せたときだけ、ブロック間に改行を入れた文字列を返す（テストしやすい純関数）
+    /// Selection 文字列がブロック列から組み立て直せるときだけ、ブロック間に改行を入れた文字列を返す。
+    /// Chromium は段落区切りだけでなく空白も落とすことがあるので、照合は「空白を除いた姿」でやり、
+    /// 出力には元のブロック文字列（正しい空白入り）を使う。合わない・1ブロックだけなら nil。
+    /// （テストしやすい純関数）
     static func rejoin(selection: String, blocks: [String]) -> String? {
-        guard blocks.count > 1 else { return nil }
-        var rest = selection, out: [String] = []
-        for block in blocks {
-            if rest.isEmpty { break }
-            if block.hasPrefix(rest) { out.append(rest); rest = ""; break }          // 選択末尾がこのブロックの中
-            if rest.hasPrefix(block) { out.append(block); rest = String(rest.dropFirst(block.count)); continue }
-            // 選択がブロックの途中から始まっている：ブロックの末尾が rest の先頭に重なるか
-            let maxOver = Swift.min(block.count, rest.count)
-            var k = maxOver, advanced = false
-            while k > 0 {
-                if block.suffix(k) == rest.prefix(k) {
-                    out.append(String(rest.prefix(k))); rest = String(rest.dropFirst(k)); advanced = true; break
-                }
-                k -= 1
+        guard blocks.count > 1, !selection.isEmpty else { return nil }
+        let compSel = compress(selection)
+        guard !compSel.isEmpty else { return nil }
+        let comp = blocks.map(compress)
+        var remaining = Substring(compSel)
+        var out: [String] = []
+        var i = 0
+        while !remaining.isEmpty {
+            guard i < comp.count else { return diag(nil, selection: selection, blocks: blocks) }
+            let b = comp[i]
+            if b.isEmpty { i += 1; continue }
+            if remaining.count > b.count, remaining.hasPrefix(b) { // このブロックは丸ごと選択の中
+                out.append(blocks[i]); remaining = remaining.dropFirst(b.count); i += 1; continue
             }
-            if !advanced && !out.isEmpty { return nil } // 選び始めたあとのブロックが合わないなら復元あきらめ
+            if remaining.count <= b.count, b.hasPrefix(remaining) { // 選択の末尾がこのブロックの中（ぴったり含む）
+                out.append(headSlice(blocks[i], compLen: remaining.count)); remaining = ""; i += 1; continue
+            }
+            let k = maxOverlap(a: b, b: remaining) // 選択の始まりがこのブロックの途中
+            if k > 0 {
+                out.append(tailSlice(blocks[i], compLen: k)); remaining = remaining.dropFirst(k); i += 1; continue
+            }
+            if out.isEmpty { i += 1; continue } // 選択開始より前のブロック
+            return diag(nil, selection: selection, blocks: blocks) // 選び始めたあとのブロックが合わない
         }
-        guard rest.isEmpty, out.count > 1 else { return nil }
-        return out.joined(separator: "\n")
+        guard out.count > 1 else { return diag(nil, selection: selection, blocks: blocks) }
+        return diag(out.joined(separator: "\n"), selection: selection, blocks: blocks)
+    }
+
+    private static func compress(_ s: String) -> String {
+        String(s.unicodeScalars.filter { !CharacterSet.whitespacesAndNewlines.contains($0) })
+    }
+
+    private static func maxOverlap<A: StringProtocol, B: StringProtocol>(a: A, b: B) -> Int {
+        var k = Swift.min(a.count, b.count)
+        while k > 0 {
+            if a.suffix(k) == b.prefix(k) { return k }
+            k -= 1
+        }
+        return 0
+    }
+
+    /// 元の文字列の先頭から、空白を除いた数だけ進んだところまでの切り取り
+    private static func headSlice(_ s: String, compLen: Int) -> String {
+        var count = 0
+        for idx in s.indices {
+            if !s[idx].isNewline, !s[idx].isWhitespace {
+                count += 1
+                if count == compLen { return String(s[s.startIndex...idx]) }
+            }
+        }
+        return s
+    }
+
+    /// 元の文字列の末尾から、空白を除いた数だけ遡ったところまでの切り取り
+    private static func tailSlice(_ s: String, compLen: Int) -> String {
+        var count = 0
+        for idx in s.indices.reversed() {
+            if !s[idx].isNewline, !s[idx].isWhitespace {
+                count += 1
+                if count == compLen { return String(s[idx...]) }
+            }
+        }
+        return s
+    }
+
+    /// MITSUTOOLS_DIAG=1 のとき、文字列の中身を出さず数値だけ /tmp に残す（会社のマシンでも報告できる）
+    private static func diag(_ result: String?, selection: String, blocks: [String]) -> String? {
+        if ProcessInfo.processInfo.environment["MITSUTOOLS_DIAG"] == "1" {
+            let line = "diag: selLen=\(selection.count) compSelLen=\(compress(selection).count) blocks=\(blocks.count) result=\(result.map { "ok(\($0.count))" } ?? "nil")\n"
+            let p = "/tmp/mitsutools-diag.log"
+            if !FileManager.default.fileExists(atPath: p) { FileManager.default.createFile(atPath: p, contents: nil) }
+            if let h = FileHandle(forWritingAtPath: p) { h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close() }
+        }
+        return result
     }
 
     private static func boundsOfSelectedRange(_ el: AXUIElement) -> CGRect? {
